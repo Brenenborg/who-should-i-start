@@ -109,7 +109,7 @@ def get_season_stats(season):
                     return True
         return False
 
-    url = f"https://api.sleeper.com/stats/nfl/{season}?season_type=regular"
+    url = f"https://api.sleeper.app/stats/nfl/{season}?season_type=regular"
     try:
         data = _fetch_json(url)
         normalized = _normalize(data)
@@ -119,7 +119,7 @@ def get_season_stats(season):
         pass
 
     prior = str(int(season) - 1)
-    url = f"https://api.sleeper.com/stats/nfl/{prior}?season_type=regular"
+    url = f"https://api.sleeper.app/stats/nfl/{prior}?season_type=regular"
     data = _fetch_json(url)
     return _normalize(data), prior
 

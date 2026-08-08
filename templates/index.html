@@ -1,0 +1,1428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Who Should I Start</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,500&family=Inter:wght@400;500;600;700&display=swap');
+
+  :root {
+    --bg: #ffffff;
+    --card: #ffffff;
+    --card-alt: #eef3ea;
+    --hero: #e5eddf;
+    --border: #d8e2d1;
+    --text: #282829;
+    --text-dim: #5c6b5e;
+    --accent: #93b874;
+    --accent-soft: #aecb95;
+    --accent-dark: #444f45;
+    --ink: #282829;
+    --success: #6b9a5a;
+    --success-soft: #e7f0e1;
+    --danger: var(--danger);
+    --danger-soft: #f7e9e7;
+    --caution: #c99a3a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    margin: 0;
+    padding: 0 0 40px;
+    font-feature-settings: "tnum" 1;
+  }
+  .app-shell { display: flex; min-height: 100vh; align-items: stretch; }
+  .sidebar {
+    width: 260px;
+    flex-shrink: 0;
+    background: var(--hero);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    padding: 24px 18px;
+  }
+  .sidebar-logo { width: 100%; height: auto; display: block; margin-bottom: 18px; }
+  .main-content { flex: 1; min-width: 0; padding: 28px 36px 40px; }
+  h1 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 32px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin: 0 0 6px;
+    color: var(--ink);
+  }
+  h3 { font-family: 'Fraunces', Georgia, serif; font-weight: 600; color: var(--ink); }
+  .subtitle { color: var(--text-dim); font-size: 14px; margin-bottom: 18px; }
+  .status { display: flex; gap: 16px; margin-bottom: 20px; font-size: 13px; color: var(--text-dim); flex-wrap: wrap; align-items: center; }
+  .status span.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--success); margin-right: 6px; }
+  .top-tabs { display: flex; flex-direction: column; gap: 4px; flex: 1; }
+  .top-tab { background: transparent; border: none; color: var(--accent-dark); padding: 10px 14px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; letter-spacing: 0.01em; transition: all 0.15s ease; text-align: left; }
+  .top-tab:hover { background: rgba(255,255,255,0.6); color: var(--ink); }
+  .top-tab.active { background: var(--accent-dark); color: #ffffff; }
+  .tabs { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+  .tab { background: #ffffff; border: 1px solid var(--border); color: var(--text); padding: 7px 16px; border-radius: 20px; cursor: pointer; font-size: 13px; font-weight: 600; }
+  .tab.active { background: var(--accent); border-color: var(--accent); color: #ffffff; }
+  input, select, button.btn { background: #ffffff; border: 1px solid var(--border); color: var(--text); padding: 8px 14px; border-radius: 8px; font-size: 14px; font-family: inherit; }
+  input:focus, select:focus { outline: none; border-color: var(--accent); }
+  button.btn { cursor: pointer; font-weight: 600; color: var(--accent-dark); }
+  button.btn:hover { border-color: var(--accent); background: var(--success-soft); }
+  input#search { width: 220px; margin-bottom: 20px; }
+  table { width: 100%; border-collapse: collapse; background: #ffffff; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 3px rgba(40,40,41,0.08); border: 1px solid var(--border); }
+  th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-dim); padding: 12px 16px; border-bottom: 1px solid var(--border); font-weight: 700; background: var(--card-alt); }
+  td { padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: 14px; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--success-soft); }
+  th.sortable { cursor: pointer; user-select: none; }
+  th.sortable:hover { color: var(--ink); }
+  th.sortable .sort-arrow { display: inline-block; width: 10px; color: var(--accent-dark); }
+  .pos-badge { display: inline-block; background: var(--accent-dark); color: #ffffff; font-size: 11px; font-weight: 700; letter-spacing: 0.02em; padding: 2px 8px; border-radius: 6px; }
+  .rank { font-family: 'Fraunces', Georgia, serif; color: var(--accent-dark); font-weight: 700; font-size: 16px; }
+  .error { background: var(--danger-soft); color: #8f3f34; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; border: 1px solid rgba(193,104,95,0.3); }
+  .empty { text-align: center; padding: 40px; color: var(--text-dim); }
+  .panel { display: none; }
+  .panel.active { display: block; }
+  .card { background: var(--card-alt); border-radius: 12px; padding: 18px 20px; border-top: 3px solid var(--accent); box-shadow: 0 2px 8px rgba(40,40,41,0.06); }
+  .tip { display: inline-flex; align-items: center; justify-content: center; width: 15px; height: 15px; border-radius: 50%; border: 1px solid var(--text-dim); color: var(--text-dim); font-size: 10px; font-weight: 700; cursor: help; margin-left: 5px; vertical-align: middle; font-family: 'Inter', sans-serif; }
+  .tip:hover { border-color: var(--accent-dark); color: var(--accent-dark); }
+  .tooltip-popup {
+    position: fixed;
+    background: var(--ink);
+    color: #ffffff;
+    border: 1px solid var(--accent-dark);
+    padding: 9px 11px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 1.4;
+    width: 230px;
+    z-index: 9999;
+    box-shadow: 0 8px 24px rgba(40,40,41,0.35);
+    pointer-events: none;
+  }
+  .add-form { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
+  .add-form input { width: 160px; }
+  .add-form select { width: 90px; }
+  .slot-label { color: var(--text-dim); font-size: 12px; text-transform: uppercase; font-weight: 600; }
+  .print-only-title { display: none; }
+  @media print {
+    .sidebar, #manual-refresh, #print-sheet,
+    .add-form, #needs-strip, #error-box, .tip, #status { display: none !important; }
+    .app-shell { display: block; }
+    .main-content { padding: 0 12px; }
+    .subtitle { display: none; }
+    .print-only-title { display: block; font-family: 'Fraunces', Georgia, serif; font-size: 22px; font-weight: 700; margin: 0 0 4px; }
+    table { box-shadow: none; border: 1px solid #999; }
+    th, td { padding: 6px 8px; font-size: 12px; }
+    .panel { display: none !important; }
+    #panel-available.active { display: block !important; }
+  }
+  @media (max-width: 820px) {
+    .app-shell { flex-direction: column; }
+    .sidebar { width: auto; flex-direction: row; flex-wrap: wrap; align-items: center; padding: 12px 16px; }
+    .sidebar-logo { width: 120px; margin: 0 16px 0 0; }
+    .top-tabs { flex-direction: row; flex-wrap: wrap; gap: 6px; }
+    .top-tab { padding: 7px 12px; font-size: 12px; }
+    .main-content { padding: 20px 16px; }
+    table { display: block; overflow-x: auto; white-space: nowrap; }
+    .card, [style*="grid-template-columns"] { grid-template-columns: 1fr !important; }
+    input#search { width: 100%; }
+    .add-form input, .add-form select { width: 100%; }
+  }
+</style>
+</head>
+<body>
+  <div class="app-shell">
+  <div class="sidebar">
+    <img src="/static/logo.png" alt="Who Should I Start" class="sidebar-logo">
+
+    <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:18px;">
+      <select id="league-switcher" style="font-weight:600; width:100%;"></select>
+      <button class="btn" id="add-league-btn" style="width:100%;">+ Add league</button>
+    </div>
+
+    <div class="top-tabs">
+      <div class="top-tab active" data-panel="home">Home</div>
+      <div class="top-tab" data-panel="available">Available players</div>
+      <div class="top-tab" data-panel="lineup">My lineup</div>
+      <div class="top-tab" data-panel="matchup">This week's matchup</div>
+      <div class="top-tab" data-panel="waivers">Waivers</div>
+      <div class="top-tab" data-panel="trade">Trade Analyzer</div>
+      <div class="top-tab" data-panel="startsit">Start/Sit</div>
+      <div class="top-tab" data-panel="standings">Standings</div>
+      <div class="top-tab" data-panel="recap">Draft Recap</div>
+      <div class="top-tab" data-panel="defense">Defense Rankings</div>
+      <div class="top-tab" data-panel="settings">Settings</div>
+    </div>
+
+    <div class="top-tab" id="glossary-btn" style="margin-top:12px; border-top:1px solid var(--border); padding-top:16px;">Glossary</div>
+  </div>
+
+  <div class="main-content">
+    <div class="subtitle">Rankings refresh automatically once a day, based on your league's own scoring rules</div>
+
+  <div id="glossary-panel" class="panel" style="background:var(--card-alt); border-radius:12px; padding:16px 20px; margin-bottom:20px;">
+    <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(260px,1fr)); gap:14px;">
+      <div><strong style="color:var(--accent-dark);">Superflex</strong><br><span style="color:var(--text-dim); font-size:13px;">A lineup slot that can be filled by a QB, RB, WR, or TE - unlike a normal FLEX, it allows a 2nd starting QB, which makes QBs much more valuable.</span></div>
+      <div><strong style="color:var(--accent-dark);">Half-PPR</strong><br><span style="color:var(--text-dim); font-size:13px;">Each catch (reception) is worth 0.5 points, regardless of yardage - a middle ground between no points-per-catch and a full point per catch.</span></div>
+      <div><strong style="color:var(--accent-dark);">FAAB / Waivers</strong><br><span style="color:var(--text-dim); font-size:13px;">How free agents get picked up during the season. Your league uses rolling waivers - whoever picks a player up moves to the back of the priority line.</span></div>
+      <div><strong style="color:var(--accent-dark);">Replacement level</strong><br><span style="color:var(--text-dim); font-size:13px;">The points a "typical" bench-level player at that position would score. A player's "value" is how far above that baseline they are - not just their raw points.</span></div>
+      <div><strong style="color:var(--accent-dark);">Bye week</strong><br><span style="color:var(--text-dim); font-size:13px;">One week each season where an NFL team doesn't play. Any of your players on that team can't score points that week.</span></div>
+      <div><strong style="color:var(--accent-dark);">Boom/bust</strong><br><span style="color:var(--text-dim); font-size:13px;">A player whose weekly scores swing wildly - huge point totals some weeks, very little others - instead of scoring close to the same amount every week. Higher risk, higher ceiling.</span></div>
+      <div><strong style="color:var(--accent-dark);">Trend (gut check)</strong><br><span style="color:var(--text-dim); font-size:13px;">Compares a player's last 3 games to their season average - helps tell whether a recent bad (or great) week is a real trend or just one weird game.</span></div>
+      <div><strong style="color:var(--accent-dark);">Consistency rating</strong><br><span style="color:var(--text-dim); font-size:13px;">Based on how much a player's actual weekly score swung last season. "Consistent" players deliver close to their average every week; "Boom/bust" players have huge highs and lows.</span></div>
+      <div><strong style="color:var(--accent-dark);">VORP</strong><br><span style="color:var(--text-dim); font-size:13px;">"Value Over Replacement Player" - the method this app uses to rank players by how much better they are than someone easily available, not just raw stats.</span></div>
+    </div>
+  </div>
+
+  <script>
+    document.getElementById("glossary-btn").addEventListener("click", () => {
+      document.getElementById("glossary-panel").classList.toggle("active");
+    });
+  </script>
+
+  <div id="panel-home" class="panel active">
+    <div id="bye-alert-banner"></div>
+    <div id="bye-cluster-banner"></div>
+    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px,1fr)); gap:16px;">
+      <div style="background:var(--card); border-radius:12px; padding:18px 20px;">
+        <div style="color:var(--text-dim); font-size:12px; text-transform:uppercase; margin-bottom:10px;">Your team needs <span class="tip" data-tip="Compares what you've drafted so far to how many starters your league actually requires at each position.">?</span></div>
+        <div id="home-needs" style="display:flex; gap:8px; flex-wrap:wrap;">Loading...</div>
+      </div>
+      <div style="background:var(--card); border-radius:12px; padding:18px 20px;">
+        <h3 style="margin:0 0 10px; font-size:16px;">This week's matchup <span class="tip" data-tip="Your optimized lineup vs your actual opponent's, using average points per game to project each side.">?</span></h3>
+        <div id="home-matchup">Loading...</div>
+      </div>
+      <div style="background:var(--card); border-radius:12px; padding:18px 20px; grid-column:1 / -1;">
+        <h3 style="margin:0 0 10px; font-size:16px;">Your best lineup right now <span class="tip" data-tip="The highest-scoring lineup possible from your current roster, based on each player's average points per game.">?</span></h3>
+        <div id="home-best-lineup">Loading...</div>
+      </div>
+      <div style="background:var(--card); border-radius:12px; padding:18px 20px; grid-column:1 / -1;">
+        <h3 style="margin:0 0 10px; font-size:16px;">Top players worth grabbing <span class="tip" data-tip="Free agents not on anyone's roster league-wide, ranked by value over a replacement-level player at their position.">?</span></h3>
+        <div id="home-pickups">Loading...</div>
+      </div>
+      <div style="background:var(--card); border-radius:12px; padding:18px 20px;">
+        <h3 style="margin:0 0 10px; font-size:16px;">Buzzing right now <span class="tip" data-tip="Players being added across thousands of Sleeper leagues in the last 48 hours - a real signal for injury news, breakouts, or waiver-worthy sleepers.">?</span></h3>
+        <div id="home-trending">Loading...</div>
+      </div>
+      <div style="background:var(--card); border-radius:12px; padding:18px 20px;">
+        <h3 style="margin:0 0 10px; font-size:16px;">How you compare <span class="tip" data-tip="Your roster's total value vs the league average, plus which positions you're strong or thin in relative to everyone else.">?</span></h3>
+        <div id="home-benchmark">Loading...</div>
+      </div>
+      <div style="background:var(--card); border-radius:12px; padding:18px 20px;">
+        <h3 style="margin:0 0 10px; font-size:16px;">League activity <span class="tip" data-tip="Recent trades and waiver moves from every team in your league, not just yours.">?</span></h3>
+        <div id="home-activity">Loading...</div>
+      </div>
+      <div style="background:var(--card); border-radius:12px; padding:18px 20px; grid-column:1 / -1;">
+        <h3 style="margin:0 0 10px; font-size:16px;">Latest news on your roster <span class="tip" data-tip="Real headlines from ESPN's NFL feed that mention a player on your roster - links go to the original article.">?</span></h3>
+        <div id="home-news">Loading...</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="panel-available" class="panel">
+    <div class="print-only-title">Fantasy Draft Cheat Sheet</div>
+    <div class="status" id="status"></div>
+    <button class="btn" id="manual-refresh" style="margin-bottom:16px;">Refresh now</button>
+    <button class="btn" id="print-sheet" style="margin-bottom:16px; margin-left:8px;">Print cheat sheet</button>
+    <div style="font-size:12px; color:var(--text-dim); margin-bottom:6px;">Your team needs <span class="tip" data-tip="Live count of how many starters you've drafted at each position vs how many your league requires.">?</span></div>
+    <div id="needs-strip" style="display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap;"></div>
+    <div style="font-size:12px; color:var(--text-dim); margin-bottom:6px;">Positional scarcity <span class="tip" data-tip="How many still-available players at each position are actually above replacement level (real starter value), not just any name left on the board.">?</span></div>
+    <div id="scarcity-strip" style="display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap;"></div>
+    <div id="error-box"></div>
+
+    <div class="add-form">
+      <input type="text" id="add-name" placeholder="Player name">
+      <select id="add-position">
+        <option>QB</option><option>RB</option><option>WR</option><option>TE</option><option>K</option><option>DEF</option>
+      </select>
+      <input type="text" id="add-team" placeholder="Team (optional)">
+      <input type="text" id="add-notes" placeholder="Notes (optional)">
+      <button class="btn" id="add-btn">Add rookie/player</button>
+    </div>
+
+    <div class="tabs" id="tabs">
+      <div class="tab active" data-pos="ALL">ALL</div>
+      <div class="tab" data-pos="QB">QB</div>
+      <div class="tab" data-pos="RB">RB</div>
+      <div class="tab" data-pos="WR">WR</div>
+      <div class="tab" data-pos="TE">TE</div>
+      <div class="tab" data-pos="K">K</div>
+      <div class="tab" data-pos="DEF">DEF</div>
+    </div>
+
+    <input type="text" id="search" placeholder="Find player...">
+    <label style="font-size:13px; color:var(--text-dim); margin-left:12px;">
+      <input type="checkbox" id="watchlist-filter" style="width:auto; margin-right:6px;">
+      Watchlist only <span class="tip" data-tip="Star a player anywhere in this table to add them to your watchlist, then check this to see just your targets.">?</span>
+    </label>
+
+    <table>
+      <thead>
+        <tr>
+          <th style="width:24px;">&#9733;</th>
+          <th class="sortable" data-sort="rank">Rank <span class="tip" data-tip="Overall rank by value - how much better this player is than a replacement-level player at their position, given your league's rules.">?</span></th>
+          <th class="sortable" data-sort="name">Player</th>
+          <th class="sortable" data-sort="position">Pos</th>
+          <th class="sortable" data-sort="team">Team</th>
+          <th>Matchup <span class="tip" data-tip="This week's real opponent, color-coded by how tough that defense is, with weather conditions on hover when available.">?</span></th>
+          <th class="sortable" data-sort="points">Pts <span class="tip" data-tip="Total fantasy points scored last season under your league's exact scoring rules.">?</span></th>
+          <th class="sortable" data-sort="per_game_avg">Avg/Gm <span class="tip" data-tip="Points per game played - often a better guide than the season total for who to trust this week.">?</span></th>
+          <th class="sortable" data-sort="consistency">Consistency <span class="tip" data-tip="How much this player's weekly score swung last season. Consistent = reliable most weeks. Boom/bust = big highs and lows.">?</span></th>
+          <th>Trend <span class="tip" data-tip="The gut check: is their recent form a real trend, or just one weird week? Compares their last 3 games to their season average.">?</span></th>
+          <th class="sortable" data-sort="reason">Notes</th>
+        </tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+
+  <div id="panel-lineup" class="panel">
+    <div id="lineup-error"></div>
+    <div id="lineup-total" style="margin-bottom:16px;"></div>
+    <table>
+      <thead><tr><th>Slot <span class="tip" data-tip="Which roster spot this player fills, based on your league's exact starting positions.">?</span></th><th>Player</th><th>Pos</th><th>Matchup</th><th>Pts</th><th>Avg/Gm <span class="tip" data-tip="Points per game - this is what lineup decisions are based on.">?</span></th></tr></thead>
+      <tbody id="lineup-rows"></tbody>
+    </table>
+    <h3 style="margin-top:24px; font-size:15px;">Bench</h3>
+    <table>
+      <thead><tr><th>Player</th><th>Pos</th><th>Matchup</th><th>Pts</th><th>Avg/Gm</th></tr></thead>
+      <tbody id="bench-rows"></tbody>
+    </table>
+  </div>
+
+  <div id="panel-matchup" class="panel">
+    <div id="matchup-content"></div>
+  </div>
+
+  <div id="panel-waivers" class="panel">
+    <div id="waivers-content"></div>
+  </div>
+
+  <div id="panel-standings" class="panel">
+    <h3 style="margin:0 0 16px; font-size:16px;">League Standings <span class="tip" data-tip="Win-loss records and points for/against for every team in your league.">?</span></h3>
+    <table>
+      <thead><tr><th>#</th><th>Team</th><th>W</th><th>L</th><th>T</th><th>Points For</th><th>Points Against</th></tr></thead>
+      <tbody id="standings-rows"></tbody>
+    </table>
+  </div>
+
+  <div id="panel-recap" class="panel">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+      <h3 style="margin:0; font-size:16px;">Draft Recap <span class="tip" data-tip="Every pick made in your league's draft, in order.">?</span></h3>
+    </div>
+    <div id="recap-content"></div>
+  </div>
+
+  <div id="panel-defense" class="panel">
+    <h3 style="margin:0 0 12px; font-size:16px;">Defense Strength Rankings <span class="tip" data-tip="Ranks each team's DEF unit by how well it scores in your league's format - a general proxy for toughness, not matchup-specific. Cross-reference with your own knowledge of who a player's next opponent is.">?</span></h3>
+    <p style="color:var(--text-dim); font-size:13px; margin-top:0;">This ranks overall defense strength, not a specific week's matchup - pair it with knowing who your player's next opponent is.</p>
+    <table>
+      <thead><tr><th>Rank</th><th>Team</th><th>Avg/Gm</th><th>Read</th></tr></thead>
+      <tbody id="defense-rows"></tbody>
+    </table>
+  </div>
+
+  <div id="panel-settings" class="panel">
+    <h3 style="margin:0 0 6px; font-size:16px;">My Leagues</h3>
+    <p style="color:var(--text-dim); font-size:13px; margin-top:0;">
+      Save as many leagues as you're in. Everyone sharing this app picks their own league from the
+      dropdown at the top of the page - saving or editing a league here doesn't change what anyone
+      else is currently viewing.
+    </p>
+
+    <div id="leagues-list" style="margin-bottom:24px;"></div>
+
+    <div style="background:var(--card); border-radius:12px; padding:20px; max-width:480px;">
+      <h3 style="margin:0 0 12px; font-size:15px;" id="league-form-title">Add a league</h3>
+      <input type="hidden" id="league-edit-id">
+      <div style="display:flex; flex-direction:column; gap:12px;">
+        <label style="font-size:13px; color:var(--text-dim);">Label <span class="tip" data-tip="A friendly name so you can tell your leagues apart, e.g. 'Club 1010' or 'Work League'.">?</span>
+          <input type="text" id="settings-label" style="width:100%; margin-top:4px;" placeholder="e.g. Club 1010">
+        </label>
+        <label style="font-size:13px; color:var(--text-dim);">Sleeper League ID <span class="tip" data-tip="The number at the end of your league's URL on sleeper.com, e.g. sleeper.com/leagues/[this number]/league">?</span>
+          <input type="text" id="settings-league" style="width:100%; margin-top:4px;" placeholder="e.g. 1389030413707534336">
+        </label>
+        <label style="font-size:13px; color:var(--text-dim);">Sleeper Username <span class="tip" data-tip="Your Sleeper login display name - used to find which roster in the league is yours.">?</span>
+          <input type="text" id="settings-username" style="width:100%; margin-top:4px;" placeholder="your Sleeper display name">
+        </label>
+        <label style="font-size:13px; color:var(--text-dim);">Season <span class="tip" data-tip="Which NFL season to pull stats and matchups for.">?</span>
+          <input type="text" id="settings-season" style="width:100%; margin-top:4px;" placeholder="2026">
+        </label>
+        <div style="display:flex; gap:8px;">
+          <button class="btn" id="settings-save" style="align-self:flex-start;">Save league</button>
+          <button class="btn" id="settings-cancel-edit" style="align-self:flex-start; display:none;">Cancel edit</button>
+        </div>
+        <div id="settings-status" style="font-size:13px; color:var(--success);"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="panel-trade" class="panel">
+    <h3 style="margin:0 0 16px; font-size:16px;">Trade Analyzer <span class="tip" data-tip="Compares total value (not just points) on each side of a proposed trade, using the same VORP math as your rankings.">?</span></h3>
+    <div style="display:flex; gap:20px; flex-wrap:wrap; margin-bottom:20px;">
+      <div style="flex:1; min-width:320px; background:var(--card); border-radius:12px; padding:16px 20px;">
+        <div style="color:var(--text-dim); font-size:12px; text-transform:uppercase; margin-bottom:8px;">You give</div>
+        <input type="text" id="trade-give-search" placeholder="Search a player to add..." style="width:100%; margin-bottom:10px;">
+        <div id="trade-give-list"></div>
+      </div>
+      <div style="flex:1; min-width:320px; background:var(--card); border-radius:12px; padding:16px 20px;">
+        <div style="color:var(--text-dim); font-size:12px; text-transform:uppercase; margin-bottom:8px;">You get</div>
+        <input type="text" id="trade-get-search" placeholder="Search a player to add..." style="width:100%; margin-bottom:10px;">
+        <div id="trade-get-list"></div>
+      </div>
+    </div>
+    <div id="trade-verdict" style="background:var(--card); border-radius:12px; padding:20px; text-align:center; font-size:18px; font-weight:600;">
+      Add players to both sides to see the verdict
+    </div>
+  </div>
+
+  <div id="panel-startsit" class="panel">
+    <h3 style="margin:0 0 16px; font-size:16px;">Start/Sit Comparison <span class="tip" data-tip="Compare 2-4 players head to head using points per game, to decide who to start this week.">?</span></h3>
+    <div style="max-width:480px; margin-bottom:16px;">
+      <input type="text" id="ss-search" placeholder="Search a player to compare..." style="width:100%;">
+    </div>
+    <div id="ss-cards" style="display:flex; gap:20px; flex-wrap:wrap;"></div>
+    <div id="ss-verdict" style="margin-top:16px; background:var(--card); border-radius:12px; padding:20px; text-align:center; font-size:16px; font-weight:600; display:none;"></div>
+  </div>
+
+  <script>
+    let activeProfileId = localStorage.getItem("activeLeagueProfile") || "";
+
+    function apiFetch(path, options) {
+      const sep = path.includes("?") ? "&" : "?";
+      return fetch(`${path}${sep}profile=${encodeURIComponent(activeProfileId)}`, options);
+    }
+
+    function setActiveProfile(id) {
+      activeProfileId = id;
+      localStorage.setItem("activeLeagueProfile", id);
+    }
+
+    function tip(text) {
+      return `<span class="tip" data-tip="${text.replace(/"/g, '&quot;')}">?</span>`;
+    }
+
+    (function initTooltips() {
+      let activeTooltip = null;
+      document.body.addEventListener("mouseover", (e) => {
+        const target = e.target.closest(".tip");
+        if (!target || activeTooltip) return;
+        const text = target.getAttribute("data-tip");
+        if (!text) return;
+        activeTooltip = document.createElement("div");
+        activeTooltip.className = "tooltip-popup";
+        activeTooltip.textContent = text;
+        document.body.appendChild(activeTooltip);
+
+        const rect = target.getBoundingClientRect();
+        const tw = activeTooltip.offsetWidth;
+        const th = activeTooltip.offsetHeight;
+        let left = rect.left + rect.width / 2 - tw / 2;
+        left = Math.max(8, Math.min(left, window.innerWidth - tw - 8));
+        let top = rect.top - th - 10;
+        if (top < 8) top = rect.bottom + 10;
+        activeTooltip.style.left = left + "px";
+        activeTooltip.style.top = top + "px";
+      });
+      document.body.addEventListener("mouseout", (e) => {
+        const target = e.target.closest(".tip");
+        if (!target) return;
+        if (activeTooltip) {
+          activeTooltip.remove();
+          activeTooltip = null;
+        }
+      });
+    })();
+
+    let currentPos = "ALL";
+    let currentSearch = "";
+    let watchlistOnly = false;
+    let allPlayers = [];
+
+    function consistencyBadge(label) {
+      if (!label) return '<span style="color:var(--text-dim); font-size:12px;">—</span>';
+      const colors = { "Consistent": "var(--success)", "Moderate risk": "var(--caution)", "Boom/bust": "var(--danger)" };
+      return `<span style="color:${colors[label] || 'var(--text-dim)'}; font-size:13px;">${label}</span>`;
+    }
+
+    function switchTopTab(panel) {
+      document.querySelectorAll(".top-tab").forEach(t => t.classList.toggle("active", t.dataset.panel === panel));
+      document.querySelectorAll(".panel").forEach(p => {
+        if (p.id === "glossary-panel") return;
+        p.classList.toggle("active", p.id === "panel-" + panel);
+      });
+      if (panel === "lineup") loadLineup();
+      if (panel === "matchup") loadMatchup();
+      if (panel === "waivers") loadWaivers();
+      if (panel === "settings") loadSettings();
+      if (panel === "trade") loadTradePlayers();
+      if (panel === "startsit") loadStartSitPlayers();
+      if (panel === "home") loadHome();
+      if (panel === "standings") loadStandings();
+      if (panel === "recap") loadDraftRecap();
+      if (panel === "defense") loadDefenseRankings();
+    }
+
+    async function loadStandings() {
+      const box = document.getElementById("standings-rows");
+      box.innerHTML = '<tr><td colspan="7" class="empty">Loading...</td></tr>';
+      try {
+        const res = await apiFetch("/api/standings");
+        const data = await res.json();
+        if (data.error) { box.innerHTML = `<tr><td colspan="7" class="empty">${data.error}</td></tr>`; return; }
+        const playoffLine = data.playoff_teams;
+        box.innerHTML = data.standings.map((t, i) => {
+          const row = `
+            <tr>
+              <td class="rank">${t.place}</td>
+              <td>${t.team_name}</td>
+              <td>${t.wins}</td>
+              <td>${t.losses}</td>
+              <td>${t.ties}</td>
+              <td>${t.points_for}</td>
+              <td>${t.points_against}</td>
+            </tr>
+          `;
+          const divider = (i + 1 === playoffLine)
+            ? `<tr><td colspan="7" style="background:var(--card-alt); text-align:center; color:var(--text-dim); font-size:11px; text-transform:uppercase; letter-spacing:0.06em; padding:6px;">Playoff cutoff</td></tr>`
+            : "";
+          return row + divider;
+        }).join("");
+      } catch (e) {
+        box.innerHTML = '<tr><td colspan="7" class="empty">Could not load standings.</td></tr>';
+      }
+    }
+
+    async function loadDraftRecap() {
+      const box = document.getElementById("recap-content");
+      box.innerHTML = "Loading...";
+      try {
+        const res = await apiFetch("/api/draft-recap");
+        const data = await res.json();
+        if (!data.available) { box.innerHTML = `<div class="error">${data.message}</div>`; return; }
+        const gradesHtml = (data.grades || []).length ? `
+          <h3 style="font-size:15px; margin-bottom:10px;">Draft Grades <span class="tip" data-tip="Each team's total value drafted, graded on a curve against the rest of the league.">?</span></h3>
+          <table style="margin-bottom:24px;">
+            <thead><tr><th>Team</th><th>Total Value</th><th>Grade</th></tr></thead>
+            <tbody>${data.grades.map(g => `
+              <tr>
+                <td>${g.team_name}</td>
+                <td>${g.total_value}</td>
+                <td class="rank">${g.grade}</td>
+              </tr>
+            `).join("")}</tbody>
+          </table>
+        ` : "";
+        box.innerHTML = gradesHtml + `
+          <table>
+            <thead><tr><th>Pick</th><th>Round</th><th>Team</th><th>Player</th><th>Pos</th><th>NFL Team</th></tr></thead>
+            <tbody>${data.picks.map(p => `
+              <tr>
+                <td class="rank">${p.pick_no ?? "-"}</td>
+                <td>${p.round ?? "-"}</td>
+                <td>${p.team_name}</td>
+                <td>${p.player_name}</td>
+                <td><span class="pos-badge">${p.position}</span></td>
+                <td>${teamLogoImg(p.nfl_team)}${p.nfl_team}</td>
+              </tr>
+            `).join("")}</tbody>
+          </table>
+        `;
+      } catch (e) {
+        box.innerHTML = `<div class="error">Could not load the draft recap.</div>`;
+      }
+    }
+
+    async function loadDefenseRankings() {
+      const box = document.getElementById("defense-rows");
+      box.innerHTML = '<tr><td colspan="4" class="empty">Loading...</td></tr>';
+      try {
+        const res = await apiFetch("/api/defense-strength");
+        const data = await res.json();
+        if (data.error) { box.innerHTML = `<tr><td colspan="4" class="empty">${data.error}</td></tr>`; return; }
+        const colors = { "Tough matchup": "var(--danger)", "Average": "var(--caution)", "Favorable matchup": "var(--success)" };
+        box.innerHTML = data.defenses.map(d => `
+          <tr>
+            <td class="rank">${d.strength_rank}</td>
+            <td>${teamLogoImg(d.team)}${d.name}</td>
+            <td>${d.per_game_avg}</td>
+            <td style="color:${colors[d.strength_label] || 'var(--text-dim)'};">${d.strength_label}</td>
+          </tr>
+        `).join("");
+      } catch (e) {
+        box.innerHTML = '<tr><td colspan="4" class="empty">Could not load defense rankings.</td></tr>';
+      }
+    }
+
+    async function loadHome() {
+      try {
+        const byeRes = await apiFetch("/api/bye-alert");
+        const byeData = await byeRes.json();
+        const banner = document.getElementById("bye-alert-banner");
+        if (byeData.on_bye && byeData.on_bye.length) {
+          const names = byeData.on_bye.map(p => `${p.name} (${p.position})`).join(", ");
+          banner.innerHTML = `<div class="card" style="border-top-color:var(--caution); margin-bottom:16px;">
+            <strong style="color:var(--caution);">Bye week alert - Week ${byeData.current_week}:</strong>
+            ${names} ${names.includes(",") ? "are" : "is"} on bye and can't score this week. Make sure you've got backups started.
+          </div>`;
+        } else {
+          banner.innerHTML = "";
+        }
+      } catch (e) {}
+
+      try {
+        const clusterRes = await apiFetch("/api/bye-clusters");
+        const clusterData = await clusterRes.json();
+        const banner = document.getElementById("bye-cluster-banner");
+        if (clusterData.clusters && clusterData.clusters.length) {
+          banner.innerHTML = clusterData.clusters.map(c => {
+            const names = c.players.map(p => `${p.name} (${p.position})`).join(", ");
+            return `<div class="card" style="border-top-color:var(--danger); margin-bottom:16px;">
+              <strong style="color:var(--danger);">Bye week stack - Week ${c.week}:</strong>
+              ${names} all share the same bye week - that's a risky cluster to carry into that week.
+            </div>`;
+          }).join("");
+        } else {
+          banner.innerHTML = "";
+        }
+      } catch (e) {}
+
+      try {
+        const needsRes = await apiFetch("/api/team-needs");
+        const needsData = await needsRes.json();
+        const needsBox = document.getElementById("home-needs");
+        if (!needsData.error) {
+          needsBox.innerHTML = needsData.needs.map(n => {
+            const color = n.remaining > 0 ? "var(--caution)" : "var(--success)";
+            return `<span style="background:var(--bg); border:1px solid ${color}; color:${color}; padding:4px 12px; border-radius:14px; font-size:13px; font-weight:600;">${n.position}: ${n.have}/${n.needed}</span>`;
+          }).join("");
+        }
+      } catch (e) {}
+
+      try {
+        const matchupRes = await apiFetch("/api/matchup");
+        const matchupData = await matchupRes.json();
+        const box = document.getElementById("home-matchup");
+        if (!matchupData.available) {
+          box.innerHTML = `<span style="color:var(--text-dim);">${matchupData.message}</span>`;
+        } else if (matchupData.bye_week) {
+          box.innerHTML = `Week ${matchupData.week}: you're on a bye.`;
+        } else {
+          const favored = matchupData.favored
+            ? `<span style="color:var(--success);">favored</span>`
+            : `<span style="color:var(--caution);">underdog</span>`;
+          box.innerHTML = `Week ${matchupData.week} vs <strong>${matchupData.opponent_name}</strong><br>
+            You're ${favored} (${matchupData.my_total} vs ${matchupData.opponent_total} projected pts, based on avg/game)`;
+        }
+      } catch (e) {}
+
+      try {
+        const waiverRes = await apiFetch("/api/waivers");
+        const waiverData = await waiverRes.json();
+        const box = document.getElementById("home-pickups");
+        if (waiverData.error) {
+          box.innerHTML = `<span style="color:var(--text-dim);">${waiverData.error}</span>`;
+        } else {
+          const top5 = (waiverData.pickups || []).slice(0, 5);
+          box.innerHTML = top5.map(p => `
+            <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--border);">
+              <span>${teamLogoImg(p.team)}${p.name} <span class="pos-badge">${p.position}</span> ${injuryBadge(p.injury_status)} ${byeBadge(p.bye_week)}</span>
+              <span style="color:var(--text-dim);">${p.per_game_avg ?? "-"} pts/gm</span>
+            </div>
+          `).join("") || '<span style="color:var(--text-dim);">Nothing standout right now</span>';
+        }
+      } catch (e) {}
+
+      try {
+        const trendRes = await apiFetch("/api/trending");
+        const trendData = await trendRes.json();
+        const box2 = document.getElementById("home-trending");
+        if (trendData.error) {
+          box2.innerHTML = `<span style="color:var(--text-dim);">${trendData.error}</span>`;
+        } else {
+          const top = (trendData.trending || []).slice(0, 8);
+          box2.innerHTML = top.map(p => `
+            <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--border);">
+              <span>${p.name} <span class="pos-badge">${p.position}</span></span>
+              <span style="color:var(--text-dim); font-size:12px;">+${p.add_count.toLocaleString()} adds</span>
+            </div>
+          `).join("") || '<span style="color:var(--text-dim);">Nothing trending right now</span>';
+        }
+      } catch (e) {}
+
+      try {
+        const lineupRes = await apiFetch("/api/lineup");
+        const lineupData = await lineupRes.json();
+        const box = document.getElementById("home-best-lineup");
+        if (lineupData.error) {
+          box.innerHTML = `<span style="color:var(--text-dim);">${lineupData.error}</span>`;
+        } else if (!lineupData.starters.length) {
+          box.innerHTML = '<span style="color:var(--text-dim);">No roster found yet</span>';
+        } else {
+          const totalAvg = lineupData.starters.reduce((sum, p) => sum + (p.per_game_avg || 0), 0);
+          box.innerHTML = `
+            <div style="display:flex; align-items:baseline; gap:8px; margin-bottom:10px;">
+              <span style="font-family:'Fraunces',serif; font-size:26px; font-weight:600; color:var(--accent);">${totalAvg.toFixed(1)}</span>
+              <span style="color:var(--text-dim); font-size:13px;">total projected pts/gm ${tip("Adds up every starter's average points per game - the best single number for how strong this lineup is expected to be on a normal week.")}</span>
+            </div>
+          ` + lineupData.starters.map(p => `
+            <div style="display:grid; grid-template-columns:90px 1fr 90px; align-items:center; padding:8px 0; border-bottom:1px solid var(--border);">
+              <span class="slot-label">${p.slot}</span>
+              <span style="text-align:left;">${teamLogoImg(p.team)}${p.name} ${p.position ? `<span class="pos-badge">${p.position}</span>` : ""} ${injuryBadge(p.injury_status)} ${byeBadge(p.bye_week)}</span>
+              <span style="color:var(--text-dim); text-align:right;">${p.per_game_avg ?? "-"} pts/gm</span>
+            </div>
+          `).join("");
+        }
+      } catch (e) {}
+
+      try {
+        const benchRes = await apiFetch("/api/benchmark");
+        const benchData = await benchRes.json();
+        const box = document.getElementById("home-benchmark");
+        if (!benchData.available) {
+          box.innerHTML = `<span style="color:var(--text-dim);">${benchData.message || "Not enough roster data yet."}</span>`;
+        } else {
+          const diff = Math.round((benchData.your_total - benchData.league_avg_total) * 10) / 10;
+          const diffColor = diff >= 0 ? "var(--success)" : "var(--danger)";
+          box.innerHTML = `
+            <div style="margin-bottom:10px;">
+              <span style="font-family:'Fraunces',serif; font-size:22px; font-weight:600;">${benchData.your_total}</span>
+              <span style="color:var(--text-dim); font-size:13px;"> vs league avg ${benchData.league_avg_total}</span>
+              <span style="color:${diffColor}; font-weight:600; font-size:13px;"> (${diff >= 0 ? "+" : ""}${diff})</span>
+            </div>
+          ` + benchData.position_comparison.map(pc => {
+            const pd = Math.round((pc.your_value - pc.league_avg) * 10) / 10;
+            const c = pd >= 0 ? "var(--success)" : "var(--danger)";
+            return `<div style="display:flex; justify-content:space-between; padding:4px 0; font-size:13px;">
+              <span>${pc.position}</span><span style="color:${c};">${pd >= 0 ? "+" : ""}${pd}</span>
+            </div>`;
+          }).join("");
+        }
+      } catch (e) {}
+
+      try {
+        const actRes = await apiFetch("/api/transactions");
+        const actData = await actRes.json();
+        const box = document.getElementById("home-activity");
+        if (actData.error) {
+          box.innerHTML = `<span style="color:var(--text-dim);">${actData.error}</span>`;
+        } else if (!actData.transactions.length) {
+          box.innerHTML = `<span style="color:var(--text-dim);">No recent league activity</span>`;
+        } else {
+          box.innerHTML = actData.transactions.slice(0, 6).map(t => `
+            <div style="padding:6px 0; border-bottom:1px solid var(--border); font-size:13px;">${t.summary}</div>
+          `).join("");
+        }
+      } catch (e) {}
+
+      try {
+        const newsRes = await apiFetch("/api/roster-news");
+        const newsData = await newsRes.json();
+        const box = document.getElementById("home-news");
+        if (newsData.error) {
+          box.innerHTML = `<span style="color:var(--text-dim);">${newsData.error}</span>`;
+        } else if (newsData.message) {
+          box.innerHTML = `<span style="color:var(--text-dim);">${newsData.message}</span>`;
+        } else if (!newsData.articles.length) {
+          box.innerHTML = `<span style="color:var(--text-dim);">No recent headlines mentioning your roster right now</span>`;
+        } else {
+          box.innerHTML = newsData.articles.map(a => `
+            <div style="padding:10px 0; border-bottom:1px solid var(--border);">
+              <a href="${a.link}" target="_blank" style="color:var(--text); font-weight:600; text-decoration:none;">${a.title}</a>
+              <div style="color:var(--text-dim); font-size:12px; margin-top:4px;">
+                ${a.source} &middot; mentions ${a.matched_players.join(", ")}
+              </div>
+            </div>
+          `).join("");
+        }
+      } catch (e) {}
+    }
+
+    function injuryBadge(status) {
+      if (!status) return "";
+      const map = {
+        "Questionable": { short: "Q", text: "Questionable - might play, worth watching before you set your lineup.", color: "var(--caution)" },
+        "Doubtful": { short: "D", text: "Doubtful - unlikely to play this week.", color: "var(--danger)" },
+        "Out": { short: "O", text: "Out - will not play this week.", color: "var(--danger)" },
+        "IR": { short: "IR", text: "Injured Reserve - out long-term, not expected back soon.", color: "var(--danger)" },
+        "PUP": { short: "PUP", text: "Physically Unable to Perform - not practicing, out indefinitely.", color: "var(--danger)" },
+        "Suspended": { short: "SUS", text: "Suspended - won't play due to a league suspension.", color: "var(--danger)" },
+      };
+      const info = map[status] || { short: status, text: status, color: "var(--caution)" };
+      return `<span class="tip" data-tip="${info.text}" style="width:auto; height:auto; border-radius:5px; padding:1px 5px; color:${info.color}; border-color:${info.color}; font-size:10px; font-weight:700;">${info.short}</span>`;
+    }
+
+    function byeBadge(byeWeek) {
+      if (!byeWeek) return "";
+      return `<span class="tip" data-tip="This player's team (bye week ${byeWeek}) won't play that week - no points possible." style="width:auto; height:auto; border-radius:5px; padding:1px 5px; color:var(--text-dim); border-color:var(--text-dim); font-size:10px; font-weight:700;">BYE ${byeWeek}</span>`;
+    }
+
+    function trendBadge(trend, reason) {
+      if (!trend) return "";
+      const colors = { "Trending up": "var(--success)", "Steady": "var(--text-dim)", "Trending down": "var(--danger)" };
+      const color = colors[trend] || "var(--text-dim)";
+      return `<span class="tip" data-tip="${reason || trend}" style="width:auto; height:auto; border:none; border-radius:0; color:${color}; font-size:12px; white-space:nowrap;">${trend}</span>`;
+    }
+
+    let ssPlayers = [];
+
+    async function loadStartSitPlayers() {
+      if (!tradeAllPlayers.length) await loadTradePlayers();
+      ssPlayers = [];
+      renderStartSit();
+      const input = document.getElementById("ss-search");
+      input.value = "";
+      const existing = document.getElementById("ss-search-results");
+      if (existing) existing.remove();
+      input.oninput = () => {
+        const q = input.value.trim().toLowerCase();
+        const old = document.getElementById("ss-search-results");
+        if (old) old.remove();
+        if (!q) return;
+        const matches = tradeAllPlayers.filter(p => p.name.toLowerCase().includes(q)).slice(0, 6);
+        const box = document.createElement("div");
+        box.id = "ss-search-results";
+        box.style.cssText = "background:var(--bg); border:1px solid var(--border); border-radius:8px; margin-top:4px; max-width:480px; overflow:hidden;";
+        box.innerHTML = matches.map(p => `
+          <div class="ss-result" data-id="${p.player_id}" style="padding:8px 12px; cursor:pointer; font-size:14px;">
+            ${p.name} <span style="color:var(--text-dim);">- ${p.position} ${p.team || ""}</span>
+          </div>
+        `).join("");
+        input.parentNode.appendChild(box);
+        box.querySelectorAll(".ss-result").forEach(el => {
+          el.addEventListener("click", () => {
+            const player = tradeAllPlayers.find(p => p.player_id === el.dataset.id);
+            if (player && ssPlayers.length < 4 && !ssPlayers.some(p => p.player_id === player.player_id)) {
+              ssPlayers.push(player);
+              renderStartSit();
+            }
+            input.value = "";
+            box.remove();
+          });
+        });
+      };
+    }
+
+    function renderStartSit() {
+      const cards = document.getElementById("ss-cards");
+      cards.innerHTML = ssPlayers.map(p => `
+        <div style="background:var(--card); border-radius:12px; padding:16px 20px; flex:1; min-width:220px;">
+          <div style="font-size:16px; font-weight:600;">${headshotImg(p.player_id)}${p.name} <span class="pos-badge">${p.position}</span> ${injuryBadge(p.injury_status)} ${byeBadge(p.bye_week)}</div>
+          <div style="color:var(--text-dim); font-size:13px; margin:8px 0;">${teamLogoImg(p.team)}${p.team || ""}</div>
+          <div style="font-size:24px; font-weight:700; color:var(--accent);">${p.per_game_avg ?? "-"} <span style="font-size:13px; color:var(--text-dim); font-weight:400;">pts/game</span></div>
+          <div style="margin-top:6px; display:flex; gap:8px; align-items:center;">${consistencyBadge(p.consistency)} ${trendBadge(p.trend, p.trend_reason)}</div>
+          <div style="color:var(--text-dim); font-size:12px; margin-top:6px;">${p.games_played || 0} games played</div>
+          <button class="btn ss-remove" data-id="${p.player_id}" style="margin-top:10px; padding:4px 10px;">Remove</button>
+        </div>
+      `).join("");
+
+      cards.querySelectorAll(".ss-remove").forEach(btn => {
+        btn.addEventListener("click", () => {
+          ssPlayers = ssPlayers.filter(p => p.player_id !== btn.dataset.id);
+          renderStartSit();
+        });
+      });
+
+      const verdict = document.getElementById("ss-verdict");
+      if (ssPlayers.length < 2) {
+        verdict.style.display = "none";
+        return;
+      }
+      verdict.style.display = "block";
+      const withScores = ssPlayers.filter(p => p.per_game_avg != null);
+      if (!withScores.length) {
+        verdict.innerHTML = "Not enough game data yet to compare these players.";
+        return;
+      }
+      const best = withScores.reduce((a, b) => (b.per_game_avg > a.per_game_avg ? b : a));
+      verdict.innerHTML = `Start <span style="color:var(--accent);">${best.name}</span> - highest projected points/game among these options` +
+        (best.consistency === "Boom/bust" ? ` (though it's a boom/bust week-to-week)` : "");
+    }
+
+    let tradeAllPlayers = [];
+    let tradeGive = [];
+    let tradeGet = [];
+
+    async function loadTradePlayers() {
+      if (tradeAllPlayers.length) return;
+      try {
+        const res = await apiFetch("/api/all-players");
+        const data = await res.json();
+        tradeAllPlayers = data.players || [];
+      } catch (e) {}
+    }
+
+    function renderTradeSearch(inputId, listId, side) {
+      const input = document.getElementById(inputId);
+      const dropdown = document.createElement("div");
+      dropdown.style.cssText = "position:relative;";
+      input.addEventListener("input", () => {
+        const q = input.value.trim().toLowerCase();
+        const existing = document.getElementById(inputId + "-results");
+        if (existing) existing.remove();
+        if (!q) return;
+        const matches = tradeAllPlayers.filter(p => p.name.toLowerCase().includes(q)).slice(0, 6);
+        const box = document.createElement("div");
+        box.id = inputId + "-results";
+        box.style.cssText = "background:var(--bg); border:1px solid var(--border); border-radius:8px; margin-top:4px; overflow:hidden;";
+        box.innerHTML = matches.map(p => `
+          <div class="trade-result" data-id="${p.player_id}" style="padding:8px 12px; cursor:pointer; font-size:14px;">
+            ${p.name} <span style="color:var(--text-dim);">- ${p.position} ${p.team || ""}</span>
+          </div>
+        `).join("");
+        input.parentNode.appendChild(box);
+        box.querySelectorAll(".trade-result").forEach(el => {
+          el.addEventListener("click", () => {
+            const player = tradeAllPlayers.find(p => p.player_id === el.dataset.id);
+            if (player) {
+              if (side === "give") tradeGive.push(player); else tradeGet.push(player);
+              renderTradeLists();
+            }
+            input.value = "";
+            box.remove();
+          });
+        });
+      });
+    }
+
+    function renderTradeLists() {
+      const rowHtml = (p, side) => `
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid var(--border);">
+          <div>
+            <div>${p.name} <span class="pos-badge">${p.position}</span></div>
+            <div style="color:var(--text-dim); font-size:12px;">${p.per_game_avg ?? "-"} pts/gm &middot; ${p.reason || ""}</div>
+          </div>
+          <button class="btn trade-remove" data-side="${side}" data-id="${p.player_id}" style="padding:4px 10px;">Remove</button>
+        </div>
+      `;
+      document.getElementById("trade-give-list").innerHTML = tradeGive.map(p => rowHtml(p, "give")).join("");
+      document.getElementById("trade-get-list").innerHTML = tradeGet.map(p => rowHtml(p, "get")).join("");
+
+      document.querySelectorAll(".trade-remove").forEach(btn => {
+        btn.addEventListener("click", () => {
+          if (btn.dataset.side === "give") tradeGive = tradeGive.filter(p => p.player_id !== btn.dataset.id);
+          else tradeGet = tradeGet.filter(p => p.player_id !== btn.dataset.id);
+          renderTradeLists();
+        });
+      });
+
+      renderTradeVerdict();
+    }
+
+    function renderTradeVerdict() {
+      const box = document.getElementById("trade-verdict");
+      if (!tradeGive.length || !tradeGet.length) {
+        box.textContent = "Add players to both sides to see the verdict";
+        return;
+      }
+      const giveTotal = tradeGive.reduce((sum, p) => sum + (p.value ?? p.points ?? 0), 0);
+      const getTotal = tradeGet.reduce((sum, p) => sum + (p.value ?? p.points ?? 0), 0);
+      const diff = Math.round((getTotal - giveTotal) * 10) / 10;
+      const absDiff = Math.abs(diff);
+
+      let label, sublabel, color;
+      if (absDiff < 5) {
+        label = "Fair trade";
+        sublabel = "Both sides are giving up roughly equal value.";
+        color = "var(--text)";
+      } else if (absDiff < 15) {
+        label = diff > 0 ? "Leans your way" : "Leans their way";
+        sublabel = `A modest edge of about ${absDiff} value points ${diff > 0 ? "in your favor" : "for them"}.`;
+        color = diff > 0 ? "var(--success)" : "var(--caution)";
+      } else {
+        label = diff > 0 ? "Lopsided in your favor" : "Lopsided in their favor";
+        sublabel = `A big gap of about ${absDiff} value points ${diff > 0 ? "in your favor" : "for them"} - worth a second look before accepting.`;
+        color = diff > 0 ? "var(--success)" : "var(--danger)";
+      }
+      box.innerHTML = `<div style="color:${color}; font-size:20px; margin-bottom:6px;">${label}</div><div style="color:var(--text-dim); font-size:13px; font-weight:400;">${sublabel}</div>`;
+    }
+
+    renderTradeSearch("trade-give-search", "trade-give-list", "give");
+    renderTradeSearch("trade-get-search", "trade-get-list", "get");
+
+    async function loadLeagueSwitcher() {
+      try {
+        const res = await fetch("/api/leagues");
+        const data = await res.json();
+        const list = data.leagues || [];
+        if (!activeProfileId || !list.some(l => l.id === activeProfileId)) {
+          setActiveProfile(list.length ? list[0].id : "");
+        }
+        const switcher = document.getElementById("league-switcher");
+        switcher.innerHTML = list.map(l => `<option value="${l.id}">${l.label}</option>`).join("");
+        switcher.value = activeProfileId;
+        return list;
+      } catch (e) {
+        return [];
+      }
+    }
+
+    document.getElementById("league-switcher").addEventListener("change", (e) => {
+      setActiveProfile(e.target.value);
+      loadHome();
+      refresh();
+      loadTeamNeeds();
+    });
+
+    document.getElementById("add-league-btn").addEventListener("click", async () => {
+      switchTopTab("settings");
+      await loadSettings();
+      resetLeagueForm();
+      document.getElementById("settings-label").focus();
+    });
+
+    async function loadSettings() {
+      const list = await loadLeagueSwitcher();
+      renderLeaguesList(list);
+      resetLeagueForm();
+    }
+
+    function renderLeaguesList(list) {
+      const box = document.getElementById("leagues-list");
+      if (!list.length) {
+        box.innerHTML = '<p style="color:var(--text-dim); font-size:13px;">No leagues saved yet - add one below.</p>';
+        return;
+      }
+      box.innerHTML = list.map(l => `
+        <div style="display:flex; justify-content:space-between; align-items:center; background:var(--card); border-radius:10px; padding:12px 16px; margin-bottom:8px;">
+          <div>
+            <strong>${l.label}</strong>
+            <div style="color:var(--text-dim); font-size:12px;">League ID ${l.league_id} &middot; ${l.username} &middot; ${l.season}</div>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <button class="btn league-edit-btn" data-id="${l.id}" style="padding:4px 12px;">Edit</button>
+            <button class="btn league-delete-btn" data-id="${l.id}" style="padding:4px 12px;">Remove</button>
+          </div>
+        </div>
+      `).join("");
+
+      document.querySelectorAll(".league-edit-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const l = list.find(x => x.id === btn.dataset.id);
+          if (!l) return;
+          document.getElementById("league-edit-id").value = l.id;
+          document.getElementById("settings-label").value = l.label;
+          document.getElementById("settings-league").value = l.league_id;
+          document.getElementById("settings-username").value = l.username;
+          document.getElementById("settings-season").value = l.season;
+          document.getElementById("league-form-title").textContent = `Edit ${l.label}`;
+          document.getElementById("settings-cancel-edit").style.display = "inline-block";
+        });
+      });
+
+      document.querySelectorAll(".league-delete-btn").forEach(btn => {
+        btn.addEventListener("click", async () => {
+          if (!confirm("Remove this league?")) return;
+          await fetch(`/api/leagues/${btn.dataset.id}`, { method: "DELETE" });
+          loadSettings();
+          loadLeagueSwitcher();
+        });
+      });
+    }
+
+    function resetLeagueForm() {
+      document.getElementById("league-edit-id").value = "";
+      document.getElementById("settings-label").value = "";
+      document.getElementById("settings-league").value = "";
+      document.getElementById("settings-username").value = "";
+      document.getElementById("settings-season").value = "";
+      document.getElementById("league-form-title").textContent = "Add a league";
+      document.getElementById("settings-cancel-edit").style.display = "none";
+    }
+
+    document.getElementById("settings-cancel-edit").addEventListener("click", resetLeagueForm);
+
+    document.getElementById("settings-save").addEventListener("click", async () => {
+      const id = document.getElementById("league-edit-id").value;
+      const label = document.getElementById("settings-label").value.trim();
+      const league_id = document.getElementById("settings-league").value.trim();
+      const username = document.getElementById("settings-username").value.trim();
+      const season = document.getElementById("settings-season").value.trim();
+      const status = document.getElementById("settings-status");
+
+      if (!league_id || !username) {
+        status.style.color = "var(--danger)";
+        status.textContent = "League ID and username are required.";
+        return;
+      }
+
+      status.style.color = "var(--success)";
+      status.textContent = "Saving...";
+      try {
+        const body = { league_id, username, season: season || "2026", label: label || "My League" };
+        if (id) body.id = id;
+        const res = await fetch("/api/leagues", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body)
+        });
+        const data = await res.json();
+        if (!id) setActiveProfile(data.profile.id);
+        status.textContent = "Saved! Refreshing rankings for this league...";
+        await apiFetch("/api/refresh", { method: "POST" });
+        status.textContent = "Saved and refreshed.";
+        resetLeagueForm();
+        loadSettings();
+        refresh();
+        loadHome();
+      } catch (e) {
+        status.style.color = "var(--danger)";
+        status.textContent = "Could not save this league.";
+      }
+    });
+
+    async function loadWaivers() {
+      const box = document.getElementById("waivers-content");
+      box.innerHTML = "Loading...";
+      try {
+        const res = await apiFetch("/api/waivers");
+        const data = await res.json();
+        if (data.error) { box.innerHTML = `<div class="error">${data.error}</div>`; return; }
+
+        const pickupRows = data.pickups.map(p => `
+          <tr>
+            <td><span class="pos-badge">${p.position}</span> ${injuryBadge(p.injury_status)} ${byeBadge(p.bye_week)}</td>
+            <td>${headshotImg(p.player_id)}${p.name}</td>
+            <td>${teamLogoImg(p.team)}${p.team || ""}</td>
+            <td>${p.per_game_avg ?? "-"}</td>
+            <td style="color:var(--text-dim); font-size:13px;">${p.reason || ""}</td>
+          </tr>
+        `).join("");
+
+        const rosterRows = data.your_roster.map(p => `
+          <tr>
+            <td><span class="pos-badge">${p.position}</span> ${injuryBadge(p.injury_status)} ${byeBadge(p.bye_week)}</td>
+            <td>${teamLogoImg(p.team)}${p.name}</td>
+            <td>${p.per_game_avg ?? "-"}</td>
+            <td>${p.starting ? '<span style="color:var(--success);">Starting</span>' : '<span style="color:var(--text-dim);">Bench</span>'}</td>
+          </tr>
+        `).join("");
+
+        box.innerHTML = `
+          <div style="display:flex; gap:20px; flex-wrap:wrap;">
+            <div style="flex:1; min-width:320px;">
+              <h3 style="font-size:15px; margin-bottom:10px;">Best available pickups ${tip('Players not on any team in your league right now, ranked by value over replacement.')}</h3>
+              <table>
+                <thead><tr><th>Pos</th><th>Player</th><th>Team</th><th>Avg/Gm</th><th>Why ${tip('How much better this player is than a typical replacement at their position.')}</th></tr></thead>
+                <tbody>${pickupRows || '<tr><td colspan="5" class="empty">No standout free agents right now</td></tr>'}</tbody>
+              </table>
+            </div>
+            <div style="flex:1; min-width:320px;">
+              <h3 style="font-size:15px; margin-bottom:10px;">Your roster (weakest first) ${tip('Your own players, sorted lowest value first - the top of this list is who to consider dropping.')}</h3>
+              <table>
+                <thead><tr><th>Pos</th><th>Player</th><th>Avg/Gm</th><th>Status ${tip('Whether this player is in your current optimal starting lineup or sitting on your bench.')}</th></tr></thead>
+                <tbody>${rosterRows || '<tr><td colspan="4" class="empty">No roster found yet</td></tr>'}</tbody>
+              </table>
+            </div>
+          </div>
+        `;
+      } catch (e) {
+        box.innerHTML = `<div class="error">Could not load waiver suggestions.</div>`;
+      }
+    }
+
+    function teamCard(title, name, total, lineup) {
+      const rows = (lineup ? lineup.starters : []).map(p => `
+        <tr>
+          <td class="slot-label">${p.slot}</td>
+          <td>${p.name}</td>
+          <td>${p.per_game_avg ?? "-"}</td>
+        </tr>
+      `).join("");
+      return `
+        <div style="background:var(--card); border-radius:12px; padding:16px 20px; flex:1;">
+          <div style="color:var(--text-dim); font-size:12px; text-transform:uppercase;">${title}</div>
+          <div style="font-size:18px; font-weight:600; margin-bottom:4px;">${name}</div>
+          <div style="font-size:28px; font-weight:700; color:var(--accent); margin-bottom:2px;">${total ?? "-"}</div>
+          <div style="color:var(--text-dim); font-size:12px; margin-bottom:12px;">projected pts (based on avg/game)</div>
+          <table><thead><tr><th>Slot</th><th>Player</th><th>Avg/Gm</th></tr></thead><tbody>${rows}</tbody></table>
+        </div>
+      `;
+    }
+
+    async function loadMatchup() {
+      const box = document.getElementById("matchup-content");
+      box.innerHTML = "Loading...";
+      try {
+        const res = await apiFetch("/api/matchup");
+        const data = await res.json();
+        if (!data.available) {
+          box.innerHTML = `<div class="error">${data.message}</div>`;
+          return;
+        }
+        if (data.bye_week) {
+          box.innerHTML = `<div class="status">Week ${data.week}: you have a bye - no opponent this week.</div>` +
+            teamCard("Your projected lineup", data.my_name, data.my_total, data.my_lineup);
+          return;
+        }
+        const verdict = data.favored
+          ? `<span style="color:var(--success);">You're favored</span>`
+          : `<span style="color:var(--caution);">You're the underdog</span>`;
+        box.innerHTML = `
+          <div class="status">Week ${data.week} &middot; ${verdict}</div>
+          <div style="display:flex; gap:20px; margin-top:12px; flex-wrap:wrap;">
+            ${teamCard("Your lineup", data.my_name, data.my_total, data.my_lineup)}
+            ${teamCard("Opponent", data.opponent_name, data.opponent_total, data.opponent_lineup)}
+          </div>
+        `;
+      } catch (e) {
+        box.innerHTML = `<div class="error">Could not load this week's matchup.</div>`;
+      }
+    }
+
+    let sortColumn = "rank";
+    let sortDirection = 1;
+    const CONSISTENCY_ORDER = { "Consistent": 0, "Moderate risk": 1, "Boom/bust": 2 };
+
+    function sortValue(p, col) {
+      if (col === "consistency") return CONSISTENCY_ORDER[p.consistency] ?? 3;
+      if (col === "name" || col === "position" || col === "team" || col === "reason") {
+        return (p[col] || p.notes || "").toString().toLowerCase();
+      }
+      const v = p[col];
+      return v === null || v === undefined ? -Infinity : v;
+    }
+
+    function renderScarcity() {
+      const strip = document.getElementById("scarcity-strip");
+      if (!strip) return;
+      const positions = ["QB", "RB", "WR", "TE", "K", "DEF"];
+      strip.innerHTML = positions.map(pos => {
+        const count = allPlayers.filter(p => p.position === pos && (p.value ?? 0) > 0).length;
+        const color = count <= 3 ? "var(--danger)" : count <= 8 ? "var(--caution)" : "var(--success)";
+        return `<span style="background:var(--card); border:1px solid ${color}; color:${color}; padding:4px 12px; border-radius:14px; font-size:13px; font-weight:600;">${pos}: ${count} left</span>`;
+      }).join("");
+    }
+
+    const ESPN_LOGO_OVERRIDES = { "WAS": "wsh" };
+    function teamLogoImg(abbr) {
+      if (!abbr) return "";
+      const code = (ESPN_LOGO_OVERRIDES[abbr] || abbr).toLowerCase();
+      return `<img src="https://a.espncdn.com/i/teamlogos/nfl/500/${code}.png" onerror="this.style.display='none'" style="width:24px; height:24px; object-fit:contain; vertical-align:middle; margin-right:8px;">`;
+    }
+
+    function headshotImg(playerId) {
+      if (!playerId || playerId.startsWith("manual-")) return "";
+      return `<img src="https://sleepercdn.com/content/nfl/players/thumb/${playerId}.jpg" onerror="this.style.display='none'" style="width:26px; height:26px; border-radius:50%; object-fit:cover; vertical-align:middle; margin-right:8px; background:var(--card-alt);">`;
+    }
+
+    function matchupBadge(p) {
+      if (!p.opponent) return '<span style="color:var(--text-dim); font-size:12px;">—</span>';
+      const colors = { "Favorable matchup": "var(--success)", "Average": "var(--caution)", "Tough matchup": "var(--danger)" };
+      const color = colors[p.matchup_label] || "var(--text-dim)";
+      let tipText = p.matchup_label ? `Opponent defense ranked #${p.opponent_def_rank} toughest (${p.matchup_label})` : "Matchup difficulty not available";
+      if (p.weather && p.weather.condition) {
+        tipText += ` · Weather: ${p.weather.condition}${p.weather.temperature != null ? ", " + p.weather.temperature + "\u00b0F" : ""}`;
+      }
+      return `<span style="display:inline-flex; align-items:center;">${teamLogoImg(p.opponent)}<span class="tip" data-tip="${tipText.replace(/"/g, '&quot;')}" style="width:auto; height:auto; border:none; border-radius:0; color:${color}; font-size:12px; font-weight:600;">vs ${p.opponent}</span></span>`;
+    }
+
+    function render() {
+      const tbody = document.getElementById("rows");
+      renderScarcity();
+      let filtered = allPlayers;
+      if (currentPos !== "ALL") filtered = filtered.filter(p => p.position === currentPos);
+      if (currentSearch) {
+        const q = currentSearch.toLowerCase();
+        filtered = filtered.filter(p => p.name.toLowerCase().includes(q));
+      }
+      if (watchlistOnly) filtered = filtered.filter(p => p.watchlisted);
+      filtered = [...filtered].sort((a, b) => {
+        const av = sortValue(a, sortColumn);
+        const bv = sortValue(b, sortColumn);
+        if (av < bv) return -1 * sortDirection;
+        if (av > bv) return 1 * sortDirection;
+        return 0;
+      });
+      document.querySelectorAll("th.sortable .sort-arrow").forEach(el => el.remove());
+      const activeTh = document.querySelector(`th.sortable[data-sort="${sortColumn}"]`);
+      if (activeTh) {
+        const arrow = document.createElement("span");
+        arrow.className = "sort-arrow";
+        arrow.textContent = sortDirection === 1 ? " \u2191" : " \u2193";
+        activeTh.appendChild(arrow);
+      }
+      if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="11" class="empty">No players match</td></tr>';
+        return;
+      }
+      tbody.innerHTML = filtered.map(p => `
+        <tr>
+          <td><span class="star-toggle" data-name="${p.name.replace(/"/g, '&quot;')}" style="cursor:pointer; color:${p.watchlisted ? 'var(--caution)' : 'var(--border)'}; font-size:16px;">&#9733;</span></td>
+          <td class="rank">${p.rank ?? "-"}</td>
+          <td>${headshotImg(p.player_id)}${p.name}</td>
+          <td><span class="pos-badge">${p.position}</span> ${injuryBadge(p.injury_status)} ${byeBadge(p.bye_week)}</td>
+          <td>${teamLogoImg(p.team)}${p.team || ""}</td>
+          <td>${matchupBadge(p)}</td>
+          <td>${p.points ?? ""}</td>
+          <td>${p.per_game_avg ?? "-"}</td>
+          <td>${consistencyBadge(p.consistency)}</td>
+          <td>${trendBadge(p.trend, p.trend_reason)}</td>
+          <td>${p.notes || p.reason || ""}</td>
+        </tr>
+      `).join("");
+      document.querySelectorAll(".star-toggle").forEach(el => {
+        el.addEventListener("click", async () => {
+          await apiFetch("/api/watchlist/toggle", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name: el.dataset.name })
+          });
+          const player = allPlayers.find(p => p.name === el.dataset.name);
+          if (player) player.watchlisted = !player.watchlisted;
+          render();
+        });
+      });
+    }
+
+    document.querySelectorAll("th.sortable").forEach(th => {
+      th.addEventListener("click", () => {
+        const col = th.dataset.sort;
+        if (sortColumn === col) {
+          sortDirection *= -1;
+        } else {
+          sortColumn = col;
+          sortDirection = 1;
+        }
+        render();
+      });
+    });
+
+    async function loadTeamNeeds() {
+      try {
+        const res = await apiFetch("/api/team-needs");
+        const data = await res.json();
+        if (data.error) return;
+        const strip = document.getElementById("needs-strip");
+        strip.innerHTML = data.needs.map(n => {
+          const color = n.remaining > 0 ? "var(--caution)" : "var(--success)";
+          const label = n.remaining > 0
+            ? `${n.position}: ${n.have}/${n.needed} needed`
+            : `${n.position}: ${n.have}/${n.needed} \u2713`;
+          return `<span style="background:var(--card); border:1px solid ${color}; color:${color}; padding:4px 12px; border-radius:14px; font-size:13px; font-weight:600;">${label}</span>`;
+        }).join("") + (data.flex_slots
+          ? `<span style="background:var(--card); border:1px solid var(--border); color:var(--text-dim); padding:4px 12px; border-radius:14px; font-size:13px;">+${data.flex_slots} flex spot${data.flex_slots > 1 ? "s" : ""}</span>`
+          : "");
+      } catch (e) {}
+    }
+
+    async function refresh() {
+      try {
+        const res = await apiFetch("/api/available");
+        const data = await res.json();
+        const errorBox = document.getElementById("error-box");
+        if (data.error) { errorBox.innerHTML = `<div class="error">${data.error}</div>`; return; }
+        errorBox.innerHTML = "";
+        allPlayers = data.available;
+        document.getElementById("status").innerHTML =
+          `<span><span class="dot"></span>${data.drafted_count} drafted</span>` +
+          `<span>${allPlayers.length} of ${data.total_count} still available</span>` +
+          `<span>Stats based on ${data.stats_season_used || "?"} season</span>`;
+        if (data.drafted_fetch_error) {
+          errorBox.innerHTML = `<div class="error">Could not check who's drafted: ${data.drafted_fetch_error} (the "still available" list may be showing everyone, not just real availability)</div>`;
+        }
+        render();
+      } catch (e) {
+        document.getElementById("error-box").innerHTML =
+          `<div class="error">Could not reach the app's server. Is app.py still running?</div>`;
+      }
+    }
+
+    async function loadLineup() {
+      const errBox = document.getElementById("lineup-error");
+      errBox.innerHTML = "";
+      try {
+        const res = await apiFetch("/api/lineup");
+        const data = await res.json();
+        if (data.error) { errBox.innerHTML = `<div class="error">${data.error}</div>`; return; }
+        const totalAvg = data.starters.reduce((sum, p) => sum + (p.per_game_avg || 0), 0);
+        document.getElementById("lineup-total").innerHTML = data.starters.length
+          ? `<span style="font-family:'Fraunces',serif; font-size:26px; font-weight:600; color:var(--accent);">${totalAvg.toFixed(1)}</span>
+             <span style="color:var(--text-dim); font-size:13px; margin-left:8px;">total projected pts/gm ${tip("The sum of every starter's average points per game - your lineup's overall projected strength for a typical week.")}</span>`
+          : "";
+        document.getElementById("lineup-rows").innerHTML = data.starters.map(p => `
+          <tr>
+            <td class="slot-label">${p.slot}</td>
+            <td>${headshotImg(p.player_id)}${p.name} ${injuryBadge(p.injury_status)} ${byeBadge(p.bye_week)}</td>
+            <td><span class="pos-badge">${p.position || ""}</span> ${teamLogoImg(p.team)}</td>
+            <td>${matchupBadge(p)}</td>
+            <td>${p.points ?? ""}</td>
+            <td>${p.per_game_avg ?? "-"}</td>
+          </tr>
+        `).join("");
+        document.getElementById("bench-rows").innerHTML = data.bench.map(p => `
+          <tr>
+            <td>${headshotImg(p.player_id)}${p.name} ${injuryBadge(p.injury_status)} ${byeBadge(p.bye_week)}</td>
+            <td><span class="pos-badge">${p.position || ""}</span> ${teamLogoImg(p.team)}</td>
+            <td>${matchupBadge(p)}</td>
+            <td>${p.points ?? ""}</td>
+            <td>${p.per_game_avg ?? "-"}</td>
+          </tr>
+        `).join("");
+      } catch (e) {
+        errBox.innerHTML = `<div class="error">Could not load your lineup.</div>`;
+      }
+    }
+
+    document.querySelectorAll(".top-tab").forEach(t => {
+      if (t.id === "glossary-btn") return;
+      t.addEventListener("click", () => switchTopTab(t.dataset.panel));
+    });
+
+    document.getElementById("tabs").addEventListener("click", (e) => {
+      if (!e.target.classList.contains("tab")) return;
+      document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+      e.target.classList.add("active");
+      currentPos = e.target.dataset.pos;
+      render();
+    });
+
+    document.getElementById("search").addEventListener("input", (e) => {
+      currentSearch = e.target.value;
+      render();
+    });
+
+    document.getElementById("watchlist-filter").addEventListener("change", (e) => {
+      watchlistOnly = e.target.checked;
+      render();
+    });
+
+    document.getElementById("add-btn").addEventListener("click", async () => {
+      const name = document.getElementById("add-name").value.trim();
+      const position = document.getElementById("add-position").value;
+      const team = document.getElementById("add-team").value.trim();
+      const notes = document.getElementById("add-notes").value.trim();
+      if (!name) return;
+      await apiFetch("/api/add-player", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, position, team, notes })
+      });
+      document.getElementById("add-name").value = "";
+      document.getElementById("add-team").value = "";
+      document.getElementById("add-notes").value = "";
+      refresh();
+    });
+
+    loadLeagueSwitcher().then(() => {
+      refresh();
+      loadTeamNeeds();
+      loadHome();
+      setInterval(refresh, 4000);
+      setInterval(loadTeamNeeds, 4000);
+    });
+    document.getElementById("manual-refresh").addEventListener("click", () => {
+      refresh();
+      loadTeamNeeds();
+    });
+    document.getElementById("print-sheet").addEventListener("click", () => {
+      switchTopTab("available");
+      setTimeout(() => window.print(), 200);
+    });
+  </script>
+  </div>
+  </div>
+</body>
+</html>

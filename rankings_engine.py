@@ -305,7 +305,12 @@ def compute_rankings(league_id, season):
         if position not in ("QB", "RB", "WR", "TE", "K", "DEF"):
             continue
         points = score_player(stats, scoring_settings)
-        if points <= 0:
+        # Real prior-season stats: a 0-point player genuinely didn't
+        # produce, worth excluding as noise. Projections are different -
+        # plenty of legitimately draftable late-round/bench players
+        # project to 0 in a given system, and excluding them starves a
+        # 15+ round mock draft of a deep enough pool.
+        if points_source == "actual" and points <= 0:
             continue
         name = f"{meta.get('first_name', '')} {meta.get('last_name', '')}".strip()
         scored.append(

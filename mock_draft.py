@@ -12,6 +12,7 @@ for the picks that haven't happened yet.
 """
 
 import urllib.request
+import urllib.error
 import json
 import re
 
@@ -47,8 +48,11 @@ def _fetch_json(url, timeout=20):
                            "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36"
         },
     )
-    with urllib.request.urlopen(request, timeout=timeout) as resp:
-        return json.loads(resp.read().decode("utf-8"))
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        raise urllib.error.HTTPError(url, e.code, f"{e.reason} - GET {url}", e.headers, e.fp)
 
 
 def _normalize_name(name):
@@ -151,11 +155,68 @@ def _slim(p):
     return {"name": p["name"], "position": p["position"], "team": p["team"], "value": p["value"]}
 
 
-def simulate_mock_draft(league_id, season, my_slot=None, username=None):
+FIXED_POSITIONS = ("QB", "RB", "WR", "TE", "K", "DEF")
+
+
+def _roster_targets(roster_positions):
+    """How many starters your league requires at each fixed position,
+    plus how many flex-type slots (FLEX/SUPERFLEX/etc.) exist separately -
+    those can go to more than one position, so they're reported on their
+    own rather than force-split across positions."""
+    base = {pos: 0 for pos in FIXED_POSITIONS}
+    flex_count = 0
+    for slot in roster_positions:
+        if slot in base:
+            base[slot] += 1
+        elif slot in ("FLEX", "SUPER_FLEX", "SUPERFLEX", "WRRB_FLEX", "REC_FLEX", "WRTE_FLEX"):
+            flex_count += 1
+    return base, flex_count
+
+
+def _get_total_rounds(league_id, roster_positions):
+    """The real round count lives on the DRAFT object (settings.rounds),
+    not the league object - league settings has no such field. Falls back
+    to counting roster slots only if the draft can't be found yet."""
+    try:
+        drafts = _fetch_json(f"https://api.sleeper.app/v1/league/{league_id}/drafts")
+        if drafts:
+            draft = _fetch_json(f"https://api.sleeper.app/v1/draft/{drafts[0]['draft_id']}")
+            rounds = (draft.get("settings") or {}).get("rounds")
+            if rounds:
+                return int(rounds)
+    except Exception:
+        pass
+    return len(roster_positions) or 15
+
+
+def get_draft_meta(league_id, username=None):
+    """Fast metadata call - just enough to build the setup screen (slot input
+    + one strategy row per round + a live position tally) without running
+    the full simulation."""
+    _, roster_positions, league = rankings_engine.get_league_settings(league_id)
+    num_teams = league.get("total_rosters", 12)
+    total_rounds = _get_total_rounds(league_id, roster_positions)
+    detected_slot = _detect_draft_slot(league_id, username)
+    roster_targets, flex_slots = _roster_targets(roster_positions)
+    return {
+        "num_teams": num_teams,
+        "total_rounds": total_rounds,
+        "detected_slot": detected_slot,
+        "roster_targets": roster_targets,
+        "flex_slots": flex_slots,
+    }
+
+
+def simulate_mock_draft(league_id, season, my_slot=None, username=None, strategy=None):
+    """strategy: optional dict of {round_number: position}. For any round
+    listed, YOUR pick in the simulation is forced to that position (still
+    picking the best value player at that position) instead of the default
+    best-value-for-a-need-slot logic. Rounds not listed fall back to that
+    default, same as everyone else's picks."""
+    strategy = strategy or {}
     scoring_settings, roster_positions, league = rankings_engine.get_league_settings(league_id)
     num_teams = league.get("total_rosters", 12)
-    settings = league.get("settings") or {}
-    total_rounds = settings.get("draft_rounds") or len(roster_positions)
+    total_rounds = _get_total_rounds(league_id, roster_positions)
     total_picks = num_teams * total_rounds
 
     slot_detected = False
@@ -174,7 +235,8 @@ def simulate_mock_draft(league_id, season, my_slot=None, username=None):
 
     my_slot = max(1, min(int(my_slot), num_teams))
 
-    rankings = rankings_engine.get_rankings(league_id, season)["players"]
+    rankings_result = rankings_engine.get_rankings(league_id, season)
+    rankings = rankings_result["players"]
     pool = [dict(p) for p in rankings if p["position"] in QUALIFYING_SLOTS]
     pool.sort(key=lambda p: p["value"], reverse=True)
 
@@ -207,12 +269,21 @@ def simulate_mock_draft(league_id, season, my_slot=None, username=None):
             }
 
         window = pool[: min(SCAN_WINDOW, len(pool))]
-        best_idx, best_score = 0, None
-        for i, p in enumerate(window):
+        target_pos = strategy.get(rnd) if is_you else None
+        if target_pos:
+            candidates = [p for p in pool if p["position"] == target_pos]
+            if not candidates:
+                candidates = window  # nobody left at the targeted position - fall back to best value
+        else:
+            candidates = window
+
+        best, best_score = None, None
+        for p in candidates:
             score = _adjusted_value(p, open_slots)
             if best_score is None or score > best_score:
-                best_score, best_idx = score, i
-        picked = pool.pop(best_idx)
+                best_score, best = score, p
+        picked = best
+        pool.remove(picked)
         _fill_slot(open_slots, picked["position"])
 
         if is_you:
@@ -221,6 +292,7 @@ def simulate_mock_draft(league_id, season, my_slot=None, username=None):
                     "pick_no": pick_no,
                     "round": rnd,
                     "projected_pick": _slim(picked),
+                    "targeted_position": target_pos if target_pos else None,
                     "board_top_overall": board_top_overall,
                     "board_by_position": board_by_position,
                 }
@@ -233,4 +305,6 @@ def simulate_mock_draft(league_id, season, my_slot=None, username=None):
         "slot_detected": slot_detected,
         "picks_already_made": len(real_picks),
         "your_picks": your_picks,
+        "points_source": rankings_result.get("points_source"),
+        "points_season": rankings_result.get("stats_season_used"),
     }

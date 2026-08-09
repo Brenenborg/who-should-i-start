@@ -268,7 +268,7 @@
           <th class="sortable" data-sort="position">Pos</th>
           <th class="sortable" data-sort="team">Team</th>
           <th>Matchup <span class="tip" data-tip="This week's real opponent, color-coded by how tough that defense is, with weather conditions on hover when available.">?</span></th>
-          <th class="sortable" data-sort="points">Pts <span class="tip" data-tip="Total fantasy points scored last season under your league's exact scoring rules.">?</span></th>
+          <th class="sortable" data-sort="points">Pts <span class="tip" data-tip="Season-total fantasy points under your league's exact scoring rules - a forward projection for the upcoming season when available, otherwise last season's real results.">?</span></th>
           <th class="sortable" data-sort="per_game_avg">Avg/Gm <span class="tip" data-tip="Points per game played - often a better guide than the season total for who to trust this week.">?</span></th>
           <th class="sortable" data-sort="consistency">Consistency <span class="tip" data-tip="How much this player's weekly score swung last season. Consistent = reliable most weeks. Boom/bust = big highs and lows.">?</span></th>
           <th>Trend <span class="tip" data-tip="The gut check: is their recent form a real trend, or just one weird week? Compares their last 3 games to their season average.">?</span></th>
@@ -286,14 +286,21 @@
       see who's realistically still on the board every time it's your turn - before draft day even starts.
     </p>
 
-    <div id="mock-slot-picker" style="background:var(--card); border-radius:12px; padding:16px 20px; margin-bottom:20px; max-width:420px; display:none;">
+    <div id="mock-setup" style="background:var(--card); border-radius:12px; padding:18px 20px; margin-bottom:20px; max-width:520px;">
       <label style="font-size:13px; color:var(--text-dim); display:block; margin-bottom:8px;">
-        Your draft slot (1-<span id="mock-num-teams">?</span>) <span class="tip" data-tip="Which position you pick from in the draft order. We couldn't auto-detect this yet - your commissioner sets or randomizes it in Sleeper, often right before the draft starts.">?</span>
+        Your draft slot (1-<span id="mock-num-teams">?</span>) <span class="tip" data-tip="Which position you pick from in the draft order. Auto-filled when Sleeper has it set - otherwise enter it yourself.">?</span>
       </label>
-      <div style="display:flex; gap:8px;">
-        <input type="number" id="mock-slot-input" min="1" style="width:100px;">
-        <button class="btn" id="mock-slot-go">Run mock draft</button>
+      <input type="number" id="mock-slot-input" min="1" style="width:100px; margin-bottom:16px;">
+
+      <div style="font-size:13px; color:var(--text-dim); margin-bottom:8px;">
+        Round-by-round strategy <span class="tip" data-tip="Force a position for any round to see how the board plays out around your own plan. Leave a round on 'Best value' and the engine picks the best available player for a slot you still need, same as it does for every other team.">?</span>
       </div>
+      <div id="mock-strategy-rows" style="display:flex; flex-direction:column; gap:6px; max-height:320px; overflow-y:auto; margin-bottom:16px; padding-right:4px;">Loading...</div>
+
+      <div style="font-size:13px; color:var(--text-dim); margin-bottom:8px;" id="mock-tally-label">Position tally <span class="tip" data-tip="Counts how many of each position you've targeted so far across your rounds, next to how many starters your league actually requires at that position. Flex-type slots (FLEX/SUPERFLEX/etc.) aren't tied to one position, so they're shown separately.">?</span></div>
+      <div id="mock-tally-strip" style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px;"></div>
+
+      <button class="btn" id="mock-run-btn">Run mock draft</button>
     </div>
 
     <div id="mock-meta" style="font-size:13px; color:var(--text-dim); margin-bottom:16px;"></div>
@@ -485,35 +492,133 @@
       if (panel === "standings") loadStandings();
       if (panel === "recap") loadDraftRecap();
       if (panel === "defense") loadDefenseRankings();
-      if (panel === "mock") loadMockDraft();
+      if (panel === "mock") initMockSetup();
     }
 
-    async function loadMockDraft(forceSlot) {
-      const box = document.getElementById("mock-content");
-      const meta = document.getElementById("mock-meta");
-      const picker = document.getElementById("mock-slot-picker");
-      box.innerHTML = "Loading...";
-      meta.innerHTML = "";
+    let mockTotalRounds = 0;
+    let mockRosterTargets = {};
+    let mockFlexSlots = 0;
+
+    function mockStrategyStorageKey() {
+      return `mockStrategy_${activeProfileId || "default"}`;
+    }
+
+    function loadSavedStrategy() {
       try {
-        const qs = forceSlot ? `?slot=${forceSlot}` : "";
-        const res = await apiFetch(`/api/mock-draft${qs}`);
+        return JSON.parse(localStorage.getItem(mockStrategyStorageKey())) || {};
+      } catch (e) {
+        return {};
+      }
+    }
+
+    function saveStrategyFromInputs() {
+      const strategy = {};
+      document.querySelectorAll("#mock-strategy-rows select").forEach(sel => {
+        if (sel.value && sel.value !== "BEST") strategy[sel.dataset.round] = sel.value;
+      });
+      localStorage.setItem(mockStrategyStorageKey(), JSON.stringify(strategy));
+      return strategy;
+    }
+
+    function tallyFromStrategyInputs() {
+      const counts = { QB: 0, RB: 0, WR: 0, TE: 0, K: 0, DEF: 0 };
+      document.querySelectorAll("#mock-strategy-rows select").forEach(sel => {
+        if (sel.value && counts.hasOwnProperty(sel.value)) counts[sel.value]++;
+      });
+      return counts;
+    }
+
+    function renderTally(counts, label) {
+      document.getElementById("mock-tally-label").innerHTML =
+        `${label} <span class="tip" data-tip="Counts how many of each position across your rounds, next to how many starters your league actually requires there. Flex-type slots aren't tied to one position, so they're shown separately.">?</span>`;
+      const order = ["QB", "RB", "WR", "TE", "K", "DEF"];
+      document.getElementById("mock-tally-strip").innerHTML = order.map(pos => {
+        const have = counts[pos] || 0;
+        const target = mockRosterTargets[pos] || 0;
+        const short = target > 0 && have < target;
+        const over = target > 0 && have > target;
+        const color = short ? "var(--caution)" : (over ? "var(--accent-dark)" : "var(--success)");
+        return `<span class="tab" style="border-color:${color}; color:${color};">${pos}: ${have}${target ? ` / ${target} starters` : ""}</span>`;
+      }).join("") + (mockFlexSlots ? `<span class="tab" style="color:var(--text-dim);">+${mockFlexSlots} flex slot${mockFlexSlots === 1 ? "" : "s"}</span>` : "");
+    }
+
+    document.getElementById("mock-strategy-rows").addEventListener("change", (e) => {
+      if (e.target.tagName === "SELECT") {
+        renderTally(tallyFromStrategyInputs(), "Your strategy so far");
+      }
+    });
+
+    async function initMockSetup() {
+      document.getElementById("mock-content").innerHTML = "";
+      document.getElementById("mock-meta").innerHTML = "";
+      const rowsBox = document.getElementById("mock-strategy-rows");
+      rowsBox.innerHTML = "Loading...";
+      try {
+        const res = await apiFetch("/api/mock-draft/meta");
+        const data = await res.json();
+        if (data.error) { rowsBox.innerHTML = `<div class="error">${data.error}</div>`; return; }
+
+        mockTotalRounds = data.total_rounds;
+        mockRosterTargets = data.roster_targets || {};
+        mockFlexSlots = data.flex_slots || 0;
+        document.getElementById("mock-num-teams").textContent = data.num_teams;
+        const slotInput = document.getElementById("mock-slot-input");
+        slotInput.max = data.num_teams;
+        if (data.detected_slot && !slotInput.value) slotInput.value = data.detected_slot;
+
+        const saved = loadSavedStrategy();
+        const posOptions = ["BEST", "QB", "RB", "WR", "TE", "K", "DEF"];
+        const posLabels = { BEST: "Best value", QB: "QB", RB: "RB", WR: "WR", TE: "TE", K: "K", DEF: "DEF" };
+
+        rowsBox.innerHTML = Array.from({ length: mockTotalRounds }, (_, i) => i + 1).map(rnd => `
+          <div style="display:flex; align-items:center; gap:10px;">
+            <span style="width:70px; font-size:13px; color:var(--text-dim);">Round ${rnd}</span>
+            <select data-round="${rnd}" style="flex:1;">
+              ${posOptions.map(p => `<option value="${p}" ${saved[rnd] === p ? "selected" : ""}>${posLabels[p]}</option>`).join("")}
+            </select>
+          </div>
+        `).join("");
+
+        renderTally(tallyFromStrategyInputs(), "Your strategy so far");
+      } catch (e) {
+        rowsBox.innerHTML = `<div class="error">Could not load draft info.</div>`;
+      }
+    }
+
+    async function runMockDraft() {
+      const slot = parseInt(document.getElementById("mock-slot-input").value, 10);
+      const meta = document.getElementById("mock-meta");
+      const box = document.getElementById("mock-content");
+      if (!slot) { meta.innerHTML = `<span style="color:var(--danger);">Enter your draft slot first.</span>`; return; }
+
+      const strategy = saveStrategyFromInputs();
+      box.innerHTML = "Running mock draft...";
+      meta.innerHTML = "";
+
+      try {
+        const res = await apiFetch("/api/mock-draft", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ slot, strategy }),
+        });
         const data = await res.json();
         if (data.error) { box.innerHTML = `<div class="error">${data.error}</div>`; return; }
-
-        if (data.needs_slot) {
-          document.getElementById("mock-num-teams").textContent = data.num_teams;
-          document.getElementById("mock-slot-input").max = data.num_teams;
-          picker.style.display = "block";
-          box.innerHTML = "";
-          return;
-        }
-        picker.style.display = "none";
 
         const detectedNote = data.slot_detected ? " (auto-detected from Sleeper)" : "";
         const inProgressNote = data.picks_already_made > 0
           ? ` &middot; ${data.picks_already_made} real picks already made, factored in`
           : "";
-        meta.innerHTML = `Drafting from slot ${data.my_slot} of ${data.num_teams}${detectedNote}${inProgressNote} &middot; ${data.total_rounds} rounds`;
+        const sourceNote = data.points_source === "projection"
+          ? ` &middot; ranked using ${data.points_season} projections`
+          : ` &middot; ranked using ${data.points_season} actual results (projections unavailable)`;
+        meta.innerHTML = `Drafting from slot ${data.my_slot} of ${data.num_teams}${detectedNote}${inProgressNote} &middot; ${data.total_rounds} rounds${sourceNote}`;
+
+        const actualCounts = { QB: 0, RB: 0, WR: 0, TE: 0, K: 0, DEF: 0 };
+        (data.your_picks || []).forEach(p => {
+          const pos = p.projected_pick.position;
+          if (actualCounts.hasOwnProperty(pos)) actualCounts[pos]++;
+        });
+        renderTally(actualCounts, "Your projected team (full simulation)");
 
         if (!data.your_picks.length) {
           box.innerHTML = `<div class="empty">No more picks left to project - looks like the draft's done!</div>`;
@@ -522,6 +627,9 @@
 
         box.innerHTML = data.your_picks.map(pick => {
           const proj = pick.projected_pick;
+          const targetBadge = pick.targeted_position
+            ? `<span class="pos-badge" style="background:var(--accent); margin-left:8px;">Targeted ${pick.targeted_position}</span>`
+            : "";
           const overallRows = pick.board_top_overall.map(p => `
             <tr>
               <td>${p.name}</td>
@@ -546,7 +654,7 @@
             <div class="card" style="margin-bottom:20px;">
               <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
                 <h3 style="margin:0; font-size:16px;">Round ${pick.round} &middot; Pick ${pick.pick_no}</h3>
-                <div style="font-size:13px; color:var(--text-dim);">Projected you'd take: <strong style="color:var(--ink);">${proj.name}</strong> (${proj.position})</div>
+                <div style="font-size:13px; color:var(--text-dim);">Projected you'd take: <strong style="color:var(--ink);">${proj.name}</strong> (${proj.position})${targetBadge}</div>
               </div>
               <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px;">${posCards}</div>
               <details>
@@ -564,10 +672,7 @@
       }
     }
 
-    document.getElementById("mock-slot-go").addEventListener("click", () => {
-      const val = parseInt(document.getElementById("mock-slot-input").value, 10);
-      if (val) loadMockDraft(val);
-    });
+    document.getElementById("mock-run-btn").addEventListener("click", runMockDraft);
 
     async function loadStandings() {
       const box = document.getElementById("standings-rows");
@@ -1420,10 +1525,13 @@
         if (data.error) { errorBox.innerHTML = `<div class="error">${data.error}</div>`; return; }
         errorBox.innerHTML = "";
         allPlayers = data.available;
+        const sourceLabel = data.points_source === "projection"
+          ? `${data.stats_season_used} season projections`
+          : `${data.stats_season_used} actual results (projections unavailable)`;
         document.getElementById("status").innerHTML =
           `<span><span class="dot"></span>${data.drafted_count} drafted</span>` +
           `<span>${allPlayers.length} of ${data.total_count} still available</span>` +
-          `<span>Stats based on ${data.stats_season_used || "?"} season</span>`;
+          `<span>Ranked using ${sourceLabel}</span>`;
         if (data.drafted_fetch_error) {
           errorBox.innerHTML = `<div class="error">Could not check who's drafted: ${data.drafted_fetch_error} (the "still available" list may be showing everyone, not just real availability)</div>`;
         }

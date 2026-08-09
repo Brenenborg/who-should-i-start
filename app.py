@@ -212,6 +212,7 @@ def api_available():
             "drafted_count": len(drafted),
             "total_count": len(players),
             "stats_season_used": result.get("stats_season_used"),
+            "points_source": result.get("points_source"),
             "drafted_fetch_error": drafted_error,
         }
     )
@@ -440,14 +441,46 @@ def api_waivers():
         return jsonify({"error": f"Could not build waiver report: {e}"}), 500
 
 
-@app.route("/api/mock-draft")
+@app.route("/api/mock-draft/meta")
+def api_mock_draft_meta():
+    profile = current_profile()
+    try:
+        result = mock_draft.get_draft_meta(profile["league_id"], username=profile.get("username"))
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": f"Could not load draft info: {e}"}), 500
+
+
+@app.route("/api/mock-draft", methods=["GET", "POST"])
 def api_mock_draft():
     profile = current_profile()
-    slot_param = request.args.get("slot")
-    my_slot = int(slot_param) if slot_param and slot_param.isdigit() else None
+    my_slot = None
+    strategy = None
+
+    if request.method == "POST":
+        data = request.get_json(force=True, silent=True) or {}
+        slot_val = data.get("slot")
+        my_slot = int(slot_val) if slot_val else None
+        raw_strategy = data.get("strategy") or {}
+        strategy = {}
+        for k, v in raw_strategy.items():
+            if not v or v == "BEST":
+                continue
+            try:
+                strategy[int(k)] = v
+            except (TypeError, ValueError):
+                continue
+    else:
+        slot_param = request.args.get("slot")
+        my_slot = int(slot_param) if slot_param and slot_param.isdigit() else None
+
     try:
         result = mock_draft.simulate_mock_draft(
-            profile["league_id"], profile["season"], my_slot=my_slot, username=profile.get("username")
+            profile["league_id"],
+            profile["season"],
+            my_slot=my_slot,
+            username=profile.get("username"),
+            strategy=strategy,
         )
         return jsonify(result)
     except Exception as e:

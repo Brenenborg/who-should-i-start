@@ -145,7 +145,7 @@
     <div class="top-tabs">
       <div class="top-tab active" data-panel="home">Home</div>
       <div class="top-tab" data-panel="available">Available players</div>
-      <div class="top-tab" data-panel="mock">Mock Draft</div>
+      <div class="top-tab" data-panel="mock">Draft Day</div>
       <div class="top-tab" data-panel="lineup">My lineup</div>
       <div class="top-tab" data-panel="matchup">This week's matchup</div>
       <div class="top-tab" data-panel="waivers">Waivers</div>
@@ -280,7 +280,7 @@
   </div>
 
   <div id="panel-mock" class="panel">
-    <h3 style="margin:0 0 6px; font-size:16px;">Mock Draft <span class="tip" data-tip="Projects who's likely to be available at each of your picks, round by round, assuming every team drafts the best remaining value for a roster slot they still need. Real drafts vary - use this to plan targets, not as gospel.">?</span></h3>
+    <h3 style="margin:0 0 6px; font-size:16px;">Draft Day <span class="tip" data-tip="Projects who's likely to be available at each of your picks, round by round, assuming every team drafts the best remaining value for a roster slot they still need. Real drafts vary - use this to plan targets, not as gospel.">?</span></h3>
     <p style="color:var(--text-dim); font-size:13px; margin-top:0; max-width:640px;">
       Simulates the rest of the draft pick-by-pick using your league's exact scoring and roster rules, so you can
       see who's realistically still on the board every time it's your turn - before draft day even starts.
@@ -514,6 +514,10 @@
       return `mockStrategy_${activeProfileId || "default"}`;
     }
 
+    function mockSlotStorageKey() {
+      return `mockSlot_${activeProfileId || "default"}`;
+    }
+
     function loadSavedStrategy() {
       try {
         return JSON.parse(localStorage.getItem(mockStrategyStorageKey())) || {};
@@ -575,7 +579,13 @@
         document.getElementById("mock-num-teams").textContent = data.num_teams;
         const slotInput = document.getElementById("mock-slot-input");
         slotInput.max = data.num_teams;
-        if (data.detected_slot && !slotInput.value) slotInput.value = data.detected_slot;
+        const savedSlot = localStorage.getItem(mockSlotStorageKey());
+        if (savedSlot) {
+          slotInput.value = savedSlot;
+        } else if (data.detected_slot) {
+          slotInput.value = data.detected_slot;
+          localStorage.setItem(mockSlotStorageKey(), data.detected_slot);
+        }
 
         const saved = loadSavedStrategy();
         const posOptions = ["BEST", "QB", "RB", "WR", "TE", "K", "DEF"];
@@ -711,6 +721,10 @@
     }
 
     document.getElementById("mock-run-btn").addEventListener("click", runMockDraft);
+
+    document.getElementById("mock-slot-input").addEventListener("change", (e) => {
+      if (e.target.value) localStorage.setItem(mockSlotStorageKey(), e.target.value);
+    });
 
     async function loadStandings() {
       const box = document.getElementById("standings-rows");

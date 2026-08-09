@@ -69,6 +69,37 @@ def get_league_settings(league_id):
     return league.get("scoring_settings", {}), league.get("roster_positions", []), league
 
 
+def get_season_projections(season):
+    """Season-total PROJECTIONS for every player - Sleeper's forward-looking
+    estimate for the season about to be played (sourced from providers like
+    Rotowire/Sportradar), not last year's results.
+
+    This is an unofficial endpoint (undocumented by Sleeper, same shape as
+    the stats one) - it's widely used and has been stable, but isn't
+    guaranteed. Raises if it comes back missing or too sparse to trust, so
+    callers can fall back to real prior-season stats."""
+    def _normalize(data):
+        if isinstance(data, dict):
+            return data
+        normalized = {}
+        for item in data:
+            if not isinstance(item, dict):
+                continue
+            player_id = item.get("player_id")
+            if not player_id:
+                continue
+            stats = item.get("stats", item)
+            normalized[str(player_id)] = stats
+        return normalized
+
+    url = f"https://api.sleeper.app/projections/nfl/{season}?season_type=regular"
+    data = _fetch_json(url)
+    normalized = _normalize(data)
+    if len(normalized) < 20:
+        raise ValueError("Projections endpoint returned too little data to trust")
+    return normalized
+
+
 def get_season_stats(season):
     """Season-total stats for every player. Tries the given season first
     (in case games have been played), falls back to the prior season."""
@@ -243,10 +274,30 @@ def compute_rankings(league_id, season):
     scoring_settings, roster_positions, league = get_league_settings(league_id)
     num_teams = league.get("total_rosters", 12)
     all_players = get_all_players()
-    season_stats, stats_season_used = get_season_stats(season)
+
+    # Prefer a forward-looking projection for the season being drafted -
+    # that's what actually matters on draft day. Fall back to last
+    # completed season's real results if projections aren't available.
+    points_source = "projection"
+    try:
+        season_points_data = get_season_projections(season)
+        points_season = season
+    except Exception:
+        points_source = "actual"
+        season_points_data, points_season = get_season_stats(season)
+
+    # Weekly volatility/trend always comes from real, already-played games -
+    # a projection has no game-to-game swings to compare against. When
+    # we're using projections for the current season, that means looking
+    # at last season's actual weekly results specifically.
+    historical_season = points_season if points_source == "actual" else str(int(season) - 1)
+    try:
+        weekly_points_by_player = get_weekly_points(historical_season, scoring_settings)
+    except Exception:
+        weekly_points_by_player = {}
 
     scored = []
-    for player_id, stats in season_stats.items():
+    for player_id, stats in season_points_data.items():
         meta = all_players.get(player_id)
         if not meta:
             continue
@@ -269,7 +320,6 @@ def compute_rankings(league_id, season):
         )
 
     needed = _starters_needed(roster_positions, num_teams)
-    weekly_points_by_player = get_weekly_points(stats_season_used, scoring_settings)
 
     for p in scored:
         weekly = weekly_points_by_player.get(p["player_id"], [])
@@ -314,10 +364,13 @@ def compute_rankings(league_id, season):
         p["value"] = round(p["points"] - replacement_level.get(p["position"], 0), 2)
         if p["per_game_avg"] is not None:
             value_per_game = round(p["per_game_avg"] - replacement_level_avg.get(p["position"], 0), 1)
+            history_note = f" ({historical_season} games)" if points_source == "projection" else ""
             p["reason"] = (
                 f"{value_per_game:+.1f} pts/gm vs. a replacement-level {p['position']} "
-                f"in your league's format"
+                f"in your league's format{history_note}"
             )
+        elif points_source == "projection":
+            p["reason"] = f"{season} projection - no {historical_season} game log to compare week-to-week"
         else:
             p["reason"] = "Not enough games played yet to compare"
 
@@ -327,7 +380,8 @@ def compute_rankings(league_id, season):
 
     return {
         "players": scored,
-        "stats_season_used": stats_season_used,
+        "stats_season_used": points_season,
+        "points_source": points_source,
         "computed_at": time.time(),
     }
 

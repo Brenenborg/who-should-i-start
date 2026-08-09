@@ -288,9 +288,12 @@
 
     <div id="mock-setup" style="background:var(--card); border-radius:12px; padding:18px 20px; margin-bottom:20px; max-width:520px;">
       <label style="font-size:13px; color:var(--text-dim); display:block; margin-bottom:8px;">
-        Your draft slot (1-<span id="mock-num-teams">?</span>) <span class="tip" data-tip="Which position you pick from in the draft order. Auto-filled when Sleeper has it set - otherwise enter it yourself.">?</span>
+        Your draft slot (1-<span id="mock-num-teams">?</span>) <span class="tip" data-tip="Which position you pick from in the draft order. Auto-filled and kept in sync once Sleeper has it set - otherwise enter it yourself and it'll be remembered.">?</span>
       </label>
-      <input type="number" id="mock-slot-input" min="1" style="width:100px; margin-bottom:16px;">
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px;">
+        <input type="number" id="mock-slot-input" min="1" style="width:100px;">
+        <span id="mock-slot-source" style="font-size:12px; color:var(--text-dim);"></span>
+      </div>
 
       <div style="font-size:13px; color:var(--text-dim); margin-bottom:8px;">
         Round-by-round strategy <span class="tip" data-tip="Force a position for any round to see how the board plays out around your own plan. Leave a round on 'Best value' and the engine picks the best available player for a slot you still need, same as it does for every other team.">?</span>
@@ -423,11 +426,58 @@
   </div>
 
   <script>
+    // --- League storage: fully client-side (localStorage), so it survives
+    // server redeploys. On first load only, we pull in whatever was
+    // previously saved server-side (from before this change) so nothing
+    // has to be re-typed - after that, the server is never the source of
+    // truth for this data again. ---
+    const SAVED_LEAGUES_KEY = "savedLeagues";
+    const MIGRATION_DONE_KEY = "savedLeaguesMigrated";
+
     let activeProfileId = localStorage.getItem("activeLeagueProfile") || "";
 
+    function getSavedLeagues() {
+      try {
+        return JSON.parse(localStorage.getItem(SAVED_LEAGUES_KEY)) || [];
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function saveSavedLeagues(list) {
+      localStorage.setItem(SAVED_LEAGUES_KEY, JSON.stringify(list));
+    }
+
+    function getActiveLeague() {
+      const list = getSavedLeagues();
+      if (!list.length) return { league_id: "", username: "", season: "2026" };
+      return list.find(l => l.id === activeProfileId) || list[0];
+    }
+
+    async function migrateServerLeaguesIfNeeded() {
+      if (localStorage.getItem(MIGRATION_DONE_KEY)) return;
+      try {
+        const res = await fetch("/api/leagues");
+        const data = await res.json();
+        const serverLeagues = data.leagues || [];
+        if (serverLeagues.length && !getSavedLeagues().length) {
+          saveSavedLeagues(serverLeagues);
+        }
+      } catch (e) {
+        // No server leagues to migrate, or server unreachable - fine,
+        // just start fresh in the browser.
+      } finally {
+        localStorage.setItem(MIGRATION_DONE_KEY, "1");
+      }
+    }
+
     function apiFetch(path, options) {
+      const league = getActiveLeague();
       const sep = path.includes("?") ? "&" : "?";
-      return fetch(`${path}${sep}profile=${encodeURIComponent(activeProfileId)}`, options);
+      const qs = `league_id=${encodeURIComponent(league.league_id || "")}` +
+        `&username=${encodeURIComponent(league.username || "")}` +
+        `&season=${encodeURIComponent(league.season || "2026")}`;
+      return fetch(`${path}${sep}${qs}`, options);
     }
 
     function setActiveProfile(id) {
@@ -578,13 +628,23 @@
         mockFlexSlots = data.flex_slots || 0;
         document.getElementById("mock-num-teams").textContent = data.num_teams;
         const slotInput = document.getElementById("mock-slot-input");
+        const slotSource = document.getElementById("mock-slot-source");
         slotInput.max = data.num_teams;
-        const savedSlot = localStorage.getItem(mockSlotStorageKey());
-        if (savedSlot) {
-          slotInput.value = savedSlot;
-        } else if (data.detected_slot) {
+        if (data.detected_slot) {
+          // Sleeper has a real, authoritative draft order now - this always
+          // wins over anything saved earlier (a guess, or a stale value from
+          // before the commissioner set/randomized the order).
           slotInput.value = data.detected_slot;
           localStorage.setItem(mockSlotStorageKey(), data.detected_slot);
+          slotSource.textContent = "✓ set by Sleeper";
+        } else {
+          const savedSlot = localStorage.getItem(mockSlotStorageKey());
+          if (savedSlot) {
+            slotInput.value = savedSlot;
+            slotSource.textContent = "saved from last time";
+          } else {
+            slotSource.textContent = "";
+          }
         }
 
         const saved = loadSavedStrategy();
@@ -723,7 +783,11 @@
     document.getElementById("mock-run-btn").addEventListener("click", runMockDraft);
 
     document.getElementById("mock-slot-input").addEventListener("change", (e) => {
-      if (e.target.value) localStorage.setItem(mockSlotStorageKey(), e.target.value);
+      if (e.target.value) {
+        localStorage.setItem(mockSlotStorageKey(), e.target.value);
+        const slotSource = document.getElementById("mock-slot-source");
+        if (slotSource) slotSource.textContent = "saved";
+      }
     });
 
     async function loadStandings() {
@@ -738,7 +802,7 @@
           const row = `
             <tr>
               <td class="rank">${t.place}</td>
-              <td>${t.team_name}</td>
+              <td>${teamAvatarImg(t.avatar_url)}${t.team_name}</td>
               <td>${t.wins}</td>
               <td>${t.losses}</td>
               <td>${t.ties}</td>
@@ -769,7 +833,7 @@
             <thead><tr><th>Team</th><th>Total Value</th><th>Grade</th></tr></thead>
             <tbody>${data.grades.map(g => `
               <tr>
-                <td>${g.team_name}</td>
+                <td>${teamAvatarImg(g.avatar_url)}${g.team_name}</td>
                 <td>${g.total_value}</td>
                 <td class="rank">${g.grade}</td>
               </tr>
@@ -783,7 +847,7 @@
               <tr>
                 <td class="rank">${p.pick_no ?? "-"}</td>
                 <td>${p.round ?? "-"}</td>
-                <td>${p.team_name}</td>
+                <td>${teamAvatarImg(p.avatar_url)}${p.team_name}</td>
                 <td>${p.player_name}</td>
                 <td><span class="pos-badge">${p.position}</span></td>
                 <td>${teamLogoImg(p.nfl_team)}${p.nfl_team}</td>
@@ -1204,20 +1268,15 @@
     renderTradeSearch("trade-get-search", "trade-get-list", "get");
 
     async function loadLeagueSwitcher() {
-      try {
-        const res = await fetch("/api/leagues");
-        const data = await res.json();
-        const list = data.leagues || [];
-        if (!activeProfileId || !list.some(l => l.id === activeProfileId)) {
-          setActiveProfile(list.length ? list[0].id : "");
-        }
-        const switcher = document.getElementById("league-switcher");
-        switcher.innerHTML = list.map(l => `<option value="${l.id}">${l.label}</option>`).join("");
-        switcher.value = activeProfileId;
-        return list;
-      } catch (e) {
-        return [];
+      await migrateServerLeaguesIfNeeded();
+      const list = getSavedLeagues();
+      if (!activeProfileId || !list.some(l => l.id === activeProfileId)) {
+        setActiveProfile(list.length ? list[0].id : "");
       }
+      const switcher = document.getElementById("league-switcher");
+      switcher.innerHTML = list.map(l => `<option value="${l.id}">${l.label}</option>`).join("");
+      switcher.value = activeProfileId;
+      return list;
     }
 
     document.getElementById("league-switcher").addEventListener("change", (e) => {
@@ -1274,9 +1333,10 @@
       });
 
       document.querySelectorAll(".league-delete-btn").forEach(btn => {
-        btn.addEventListener("click", async () => {
+        btn.addEventListener("click", () => {
           if (!confirm("Remove this league?")) return;
-          await fetch(`/api/leagues/${btn.dataset.id}`, { method: "DELETE" });
+          const updated = getSavedLeagues().filter(l => l.id !== btn.dataset.id);
+          saveSavedLeagues(updated);
           loadSettings();
           loadLeagueSwitcher();
         });
@@ -1312,15 +1372,20 @@
       status.style.color = "var(--success)";
       status.textContent = "Saving...";
       try {
-        const body = { league_id, username, season: season || "2026", label: label || "My League" };
-        if (id) body.id = id;
-        const res = await fetch("/api/leagues", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body)
-        });
-        const data = await res.json();
-        if (!id) setActiveProfile(data.profile.id);
+        const list = getSavedLeagues();
+        let savedId = id;
+        if (id) {
+          const idx = list.findIndex(l => l.id === id);
+          if (idx !== -1) {
+            list[idx] = { ...list[idx], label: label || "My League", league_id, username, season: season || "2026" };
+          }
+        } else {
+          savedId = (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}`).slice(0, 8);
+          list.push({ id: savedId, label: label || "My League", league_id, username, season: season || "2026" });
+        }
+        saveSavedLeagues(list);
+        if (!id) setActiveProfile(savedId);
+
         status.textContent = "Saved! Refreshing rankings for this league...";
         await apiFetch("/api/refresh", { method: "POST" });
         status.textContent = "Saved and refreshed.";
@@ -1467,6 +1532,11 @@
     function headshotImg(playerId) {
       if (!playerId || playerId.startsWith("manual-")) return "";
       return `<img src="https://sleepercdn.com/content/nfl/players/thumb/${playerId}.jpg" onerror="this.style.display='none'" style="width:26px; height:26px; border-radius:50%; object-fit:cover; vertical-align:middle; margin-right:8px; background:var(--card-alt);">`;
+    }
+
+    function teamAvatarImg(avatarUrl) {
+      if (!avatarUrl) return "";
+      return `<img src="${avatarUrl}" onerror="this.style.display='none'" style="width:26px; height:26px; border-radius:50%; object-fit:cover; vertical-align:middle; margin-right:8px; background:var(--card-alt);">`;
     }
 
     function matchupBadge(p) {

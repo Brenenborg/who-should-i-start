@@ -5,7 +5,7 @@ rules, filters out drafted players, and helps you set your best lineup.
 Supports multiple saved leagues - each browser picks its own.
 """
 
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, render_template, request, send_file
 import urllib.request
 import json
 import os
@@ -27,15 +27,25 @@ import leagues
 import trending
 import schedule
 import mock_draft
+import avatars
 
 app = Flask(__name__)
 
 
 def current_profile():
-    """Every request tells us which saved league it wants via ?profile=<id>.
-    If missing, we fall back to the first saved league."""
-    profile_id = request.args.get("profile")
-    return leagues.get_profile(profile_id)
+    """League info now travels with every request as query params
+    (league_id, username, season) - the browser is the source of truth
+    for which leagues exist, stored in localStorage so it survives server
+    redeploys. Falls back to blank values if the browser hasn't set a
+    league yet; routes already handle a missing/invalid league_id via
+    their existing try/except and surface a normal "could not load" error."""
+    return {
+        "id": None,
+        "label": "",
+        "league_id": request.args.get("league_id", ""),
+        "username": request.args.get("username", ""),
+        "season": request.args.get("season") or "2026",
+    }
 
 
 def get_enriched_rankings(profile):
@@ -138,6 +148,17 @@ def get_drafted_names(league_id):
 @app.route("/")
 def index():
     return render_template("index.html")
+
+
+@app.route("/api/avatar/<key>")
+def api_avatar(key):
+    """Serves a team/owner avatar image - downloads and caches it locally
+    from Sleeper's CDN the first time it's requested, then serves straight
+    from disk on every request after that."""
+    path, content_type = avatars.get_cached_avatar_path(key)
+    if not path:
+        return "", 404
+    return send_file(path, mimetype=content_type)
 
 
 # ---------------------------------------------------------------------------

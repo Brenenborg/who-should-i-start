@@ -5,6 +5,8 @@ Draft recap - shows every pick made in your league's draft, in order.
 import urllib.request
 import json
 
+import avatars
+
 
 def _fetch_json(url, timeout=20):
     request = urllib.request.Request(
@@ -30,6 +32,7 @@ def get_draft_recap(league_id, player_pool=None):
 
     users = _fetch_json(f"https://api.sleeper.app/v1/league/{league_id}/users")
     name_by_owner = {u.get("user_id"): (u.get("display_name") or "Unnamed team") for u in users}
+    avatar_src_by_owner = avatars.avatar_source_by_user_from_list(users)
 
     value_by_name = {}
     if player_pool:
@@ -38,16 +41,21 @@ def get_draft_recap(league_id, player_pool=None):
 
     recap = []
     team_totals = {}
+    team_avatars = {}
     for pick in picks:
         meta = pick.get("metadata") or {}
         player_name = f"{meta.get('first_name', '')} {meta.get('last_name', '')}".strip() or "Unknown"
-        team_name = name_by_owner.get(pick.get("picked_by"), "Bot pick")
+        owner_id = pick.get("picked_by")
+        team_name = name_by_owner.get(owner_id, "Bot pick")
+        avatar_url = avatars.local_avatar_url(avatar_src_by_owner.get(owner_id))
+        team_avatars[team_name] = avatar_url
         value = value_by_name.get(player_name.lower(), 0)
         recap.append(
             {
                 "pick_no": pick.get("pick_no"),
                 "round": pick.get("round"),
                 "team_name": team_name,
+                "avatar_url": avatar_url,
                 "player_name": player_name,
                 "position": meta.get("position", ""),
                 "nfl_team": meta.get("team", ""),
@@ -58,11 +66,12 @@ def get_draft_recap(league_id, player_pool=None):
 
     recap.sort(key=lambda p: p["pick_no"] or 0)
 
-    grades = _compute_grades(team_totals)
+    grades = _compute_grades(team_totals, team_avatars)
     return {"available": True, "picks": recap, "grades": grades}
 
 
-def _compute_grades(team_totals):
+def _compute_grades(team_totals, team_avatars=None):
+    team_avatars = team_avatars or {}
     ranked = sorted(team_totals.items(), key=lambda kv: kv[1], reverse=True)
     n = len(ranked)
     if n == 0:
@@ -71,5 +80,10 @@ def _compute_grades(team_totals):
     labels = ["A+", "A", "B+", "B", "C", "D"]
     for i, (team_name, total) in enumerate(ranked):
         bucket = min(int((i / n) * len(labels)), len(labels) - 1)
-        grades.append({"team_name": team_name, "total_value": round(total, 1), "grade": labels[bucket]})
+        grades.append({
+            "team_name": team_name,
+            "avatar_url": team_avatars.get(team_name),
+            "total_value": round(total, 1),
+            "grade": labels[bucket],
+        })
     return grades

@@ -300,7 +300,13 @@
       <div style="font-size:13px; color:var(--text-dim); margin-bottom:8px;" id="mock-tally-label">Position tally <span class="tip" data-tip="Counts how many of each position you've targeted so far across your rounds, next to how many starters your league actually requires at that position. Flex-type slots (FLEX/SUPERFLEX/etc.) aren't tied to one position, so they're shown separately.">?</span></div>
       <div id="mock-tally-strip" style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px;"></div>
 
-      <button class="btn" id="mock-run-btn">Run mock draft</button>
+      <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+        <button class="btn" id="mock-run-btn">Run mock draft</button>
+        <label style="font-size:13px; color:var(--text-dim); display:flex; align-items:center; gap:6px;">
+          <input type="checkbox" id="mock-auto-refresh" style="width:auto;">
+          Auto-refresh every 10s <span class="tip" data-tip="While checked, re-checks who's actually been picked in your real Sleeper draft every 10 seconds and re-simulates the rest, so the board stays current as your draft happens live. Turns off automatically if you leave this tab.">?</span>
+        </label>
+      </div>
     </div>
 
     <div id="mock-meta" style="font-size:13px; color:var(--text-dim); margin-bottom:16px;"></div>
@@ -482,6 +488,11 @@
         if (p.id === "glossary-panel") return;
         p.classList.toggle("active", p.id === "panel-" + panel);
       });
+      if (panel !== "mock") {
+        stopMockAutoRefresh();
+        const autoBox = document.getElementById("mock-auto-refresh");
+        if (autoBox) autoBox.checked = false;
+      }
       if (panel === "lineup") loadLineup();
       if (panel === "matchup") loadMatchup();
       if (panel === "waivers") loadWaivers();
@@ -585,15 +596,39 @@
       }
     }
 
-    async function runMockDraft() {
+    let mockAutoRefreshTimer = null;
+
+    function stopMockAutoRefresh() {
+      if (mockAutoRefreshTimer) {
+        clearInterval(mockAutoRefreshTimer);
+        mockAutoRefreshTimer = null;
+      }
+    }
+
+    function startMockAutoRefresh() {
+      stopMockAutoRefresh();
+      mockAutoRefreshTimer = setInterval(() => runMockDraft(true), 10000);
+    }
+
+    document.getElementById("mock-auto-refresh").addEventListener("change", (e) => {
+      if (e.target.checked) startMockAutoRefresh();
+      else stopMockAutoRefresh();
+    });
+
+    async function runMockDraft(isAuto) {
       const slot = parseInt(document.getElementById("mock-slot-input").value, 10);
       const meta = document.getElementById("mock-meta");
       const box = document.getElementById("mock-content");
-      if (!slot) { meta.innerHTML = `<span style="color:var(--danger);">Enter your draft slot first.</span>`; return; }
+      if (!slot) {
+        if (!isAuto) meta.innerHTML = `<span style="color:var(--danger);">Enter your draft slot first.</span>`;
+        return;
+      }
 
       const strategy = saveStrategyFromInputs();
-      box.innerHTML = "Running mock draft...";
-      meta.innerHTML = "";
+      if (!isAuto) {
+        box.innerHTML = "Running mock draft...";
+        meta.innerHTML = "";
+      }
 
       try {
         const res = await apiFetch("/api/mock-draft", {
@@ -611,7 +646,10 @@
         const sourceNote = data.points_source === "projection"
           ? ` &middot; ranked using ${data.points_season} projections`
           : ` &middot; ranked using ${data.points_season} actual results (projections unavailable)`;
-        meta.innerHTML = `Drafting from slot ${data.my_slot} of ${data.num_teams}${detectedNote}${inProgressNote} &middot; ${data.total_rounds} rounds${sourceNote}`;
+        const autoNote = document.getElementById("mock-auto-refresh").checked
+          ? ` &middot; auto-refreshing &middot; updated ${new Date().toLocaleTimeString()}`
+          : "";
+        meta.innerHTML = `Drafting from slot ${data.my_slot} of ${data.num_teams}${detectedNote}${inProgressNote} &middot; ${data.total_rounds} rounds${sourceNote}${autoNote}`;
 
         const actualCounts = { QB: 0, RB: 0, WR: 0, TE: 0, K: 0, DEF: 0 };
         (data.your_picks || []).forEach(p => {

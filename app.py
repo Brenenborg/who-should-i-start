@@ -26,6 +26,7 @@ import benchmark
 import leagues
 import trending
 import schedule
+import mock_draft
 
 app = Flask(__name__)
 
@@ -437,6 +438,20 @@ def api_waivers():
         return jsonify(result)
     except Exception as e:
         return jsonify({"error": f"Could not build waiver report: {e}"}), 500
+
+
+@app.route("/api/mock-draft")
+def api_mock_draft():
+    profile = current_profile()
+    slot_param = request.args.get("slot")
+    my_slot = int(slot_param) if slot_param and slot_param.isdigit() else None
+    try:
+        result = mock_draft.simulate_mock_draft(
+            profile["league_id"], profile["season"], my_slot=my_slot, username=profile.get("username")
+        )
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": f"Could not run mock draft: {e}"}), 500
 
 
 @app.route("/api/refresh", methods=["POST"])

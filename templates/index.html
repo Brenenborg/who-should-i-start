@@ -145,6 +145,7 @@
     <div class="top-tabs">
       <div class="top-tab active" data-panel="home">Home</div>
       <div class="top-tab" data-panel="available">Available players</div>
+      <div class="top-tab" data-panel="mock">Mock Draft</div>
       <div class="top-tab" data-panel="lineup">My lineup</div>
       <div class="top-tab" data-panel="matchup">This week's matchup</div>
       <div class="top-tab" data-panel="waivers">Waivers</div>
@@ -276,6 +277,27 @@
       </thead>
       <tbody id="rows"></tbody>
     </table>
+  </div>
+
+  <div id="panel-mock" class="panel">
+    <h3 style="margin:0 0 6px; font-size:16px;">Mock Draft <span class="tip" data-tip="Projects who's likely to be available at each of your picks, round by round, assuming every team drafts the best remaining value for a roster slot they still need. Real drafts vary - use this to plan targets, not as gospel.">?</span></h3>
+    <p style="color:var(--text-dim); font-size:13px; margin-top:0; max-width:640px;">
+      Simulates the rest of the draft pick-by-pick using your league's exact scoring and roster rules, so you can
+      see who's realistically still on the board every time it's your turn - before draft day even starts.
+    </p>
+
+    <div id="mock-slot-picker" style="background:var(--card); border-radius:12px; padding:16px 20px; margin-bottom:20px; max-width:420px; display:none;">
+      <label style="font-size:13px; color:var(--text-dim); display:block; margin-bottom:8px;">
+        Your draft slot (1-<span id="mock-num-teams">?</span>) <span class="tip" data-tip="Which position you pick from in the draft order. We couldn't auto-detect this yet - your commissioner sets or randomizes it in Sleeper, often right before the draft starts.">?</span>
+      </label>
+      <div style="display:flex; gap:8px;">
+        <input type="number" id="mock-slot-input" min="1" style="width:100px;">
+        <button class="btn" id="mock-slot-go">Run mock draft</button>
+      </div>
+    </div>
+
+    <div id="mock-meta" style="font-size:13px; color:var(--text-dim); margin-bottom:16px;"></div>
+    <div id="mock-content"></div>
   </div>
 
   <div id="panel-lineup" class="panel">
@@ -463,7 +485,89 @@
       if (panel === "standings") loadStandings();
       if (panel === "recap") loadDraftRecap();
       if (panel === "defense") loadDefenseRankings();
+      if (panel === "mock") loadMockDraft();
     }
+
+    async function loadMockDraft(forceSlot) {
+      const box = document.getElementById("mock-content");
+      const meta = document.getElementById("mock-meta");
+      const picker = document.getElementById("mock-slot-picker");
+      box.innerHTML = "Loading...";
+      meta.innerHTML = "";
+      try {
+        const qs = forceSlot ? `?slot=${forceSlot}` : "";
+        const res = await apiFetch(`/api/mock-draft${qs}`);
+        const data = await res.json();
+        if (data.error) { box.innerHTML = `<div class="error">${data.error}</div>`; return; }
+
+        if (data.needs_slot) {
+          document.getElementById("mock-num-teams").textContent = data.num_teams;
+          document.getElementById("mock-slot-input").max = data.num_teams;
+          picker.style.display = "block";
+          box.innerHTML = "";
+          return;
+        }
+        picker.style.display = "none";
+
+        const detectedNote = data.slot_detected ? " (auto-detected from Sleeper)" : "";
+        const inProgressNote = data.picks_already_made > 0
+          ? ` &middot; ${data.picks_already_made} real picks already made, factored in`
+          : "";
+        meta.innerHTML = `Drafting from slot ${data.my_slot} of ${data.num_teams}${detectedNote}${inProgressNote} &middot; ${data.total_rounds} rounds`;
+
+        if (!data.your_picks.length) {
+          box.innerHTML = `<div class="empty">No more picks left to project - looks like the draft's done!</div>`;
+          return;
+        }
+
+        box.innerHTML = data.your_picks.map(pick => {
+          const proj = pick.projected_pick;
+          const overallRows = pick.board_top_overall.map(p => `
+            <tr>
+              <td>${p.name}</td>
+              <td><span class="pos-badge">${p.position}</span></td>
+              <td>${teamLogoImg(p.team)}${p.team}</td>
+              <td>${p.value}</td>
+            </tr>
+          `).join("");
+
+          const posCards = ["QB", "RB", "WR", "TE"].map(pos => {
+            const list = pick.board_by_position[pos] || [];
+            const rows = list.map(p => `<div style="font-size:13px; margin-bottom:3px;">${p.name} <span style="color:var(--text-dim);">(${p.value})</span></div>`).join("");
+            return `
+              <div style="flex:1; min-width:150px; background:var(--card-alt); border-radius:10px; padding:10px 12px;">
+                <div style="font-size:11px; text-transform:uppercase; color:var(--text-dim); margin-bottom:6px; font-weight:700;">${pos}</div>
+                ${rows || '<div style="font-size:12px; color:var(--text-dim);">None left</div>'}
+              </div>
+            `;
+          }).join("");
+
+          return `
+            <div class="card" style="margin-bottom:20px;">
+              <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
+                <h3 style="margin:0; font-size:16px;">Round ${pick.round} &middot; Pick ${pick.pick_no}</h3>
+                <div style="font-size:13px; color:var(--text-dim);">Projected you'd take: <strong style="color:var(--ink);">${proj.name}</strong> (${proj.position})</div>
+              </div>
+              <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px;">${posCards}</div>
+              <details>
+                <summary style="cursor:pointer; font-size:12px; color:var(--text-dim); margin-bottom:8px;">Full board at this pick</summary>
+                <table>
+                  <thead><tr><th>Player</th><th>Pos</th><th>Team</th><th>Value</th></tr></thead>
+                  <tbody>${overallRows}</tbody>
+                </table>
+              </details>
+            </div>
+          `;
+        }).join("");
+      } catch (e) {
+        box.innerHTML = `<div class="error">Could not run the mock draft.</div>`;
+      }
+    }
+
+    document.getElementById("mock-slot-go").addEventListener("click", () => {
+      const val = parseInt(document.getElementById("mock-slot-input").value, 10);
+      if (val) loadMockDraft(val);
+    });
 
     async function loadStandings() {
       const box = document.getElementById("standings-rows");
